@@ -263,6 +263,7 @@ namespace ByteTerrace.Ouroboros.Core
                                 recordBuffer.Write(fieldMemory.Span);
                             }
                             else {
+                                recordBuffer.Write(stackalloc[] { escapeSentinel, });
                                 fieldMemory.Span.CobsEncode(escapeSentinel, fieldBuffer);
                                 recordBuffer.Write(fieldBuffer.WrittenSpan);
                                 fieldBuffer.Clear();
@@ -280,6 +281,7 @@ namespace ByteTerrace.Ouroboros.Core
                         recordBuffer.Write(fieldMemory.Span);
                     }
                     else {
+                        recordBuffer.Write(stackalloc[] { escapeSentinel, });
                         fieldMemory.Span.CobsEncode(escapeSentinel, fieldBuffer);
                         recordBuffer.Write(fieldBuffer.WrittenSpan);
                         fieldBuffer.Clear();
