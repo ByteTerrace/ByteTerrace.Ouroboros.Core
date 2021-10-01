@@ -166,6 +166,101 @@ namespace ByteTerrace.Ouroboros.Core
             }
         }
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        private static unsafe void IndicesOf(ref char searchSpace, char value, int length, ArrayPoolBufferWriter<int> buffer) {
+            var currentIndex = (stackalloc[] { 0, });
+            var lengthToExamine = ((nint)length);
+            var offset = ((nint)0);
+
+            if (0 != ((int)Unsafe.AsPointer(ref searchSpace) & 1)) { }
+            else if (Sse2.IsSupported || Avx2.IsSupported) {
+                if (15 < length) {
+                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
+                }
+            }
+
+        SequentialScan:
+            while (3 < lengthToExamine) {
+                ref var current = ref Unsafe.Add(ref searchSpace, offset);
+
+                if (value == current) {
+                    currentIndex[0] = ((int)offset);
+                    buffer.Write(currentIndex);
+                }
+                if (value == Unsafe.Add(ref current, 1)) {
+                    currentIndex[0] = (((int)offset) + 1);
+                    buffer.Write(currentIndex);
+                }
+                if (value == Unsafe.Add(ref current, 2)) {
+                    currentIndex[0] = (((int)offset) + 2);
+                    buffer.Write(currentIndex);
+                }
+                if (value == Unsafe.Add(ref current, 3)) {
+                    currentIndex[0] = (((int)offset) + 3);
+                    buffer.Write(currentIndex);
+                }
+
+                lengthToExamine -= 4;
+                offset += 4;
+            }
+
+            while (0 < lengthToExamine) {
+                if (value == Unsafe.Add(ref searchSpace, offset)) {
+                    currentIndex[0] = ((int)offset);
+                    buffer.Write(currentIndex);
+                }
+
+                --lengthToExamine;
+                ++offset;
+            }
+
+            if (offset < length) {
+                if (Avx2.IsSupported) {
+                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref searchSpace, offset))) & (Vector256<byte>.Count - 1))) {
+                        var mask = Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value), LoadVector128(ref searchSpace, offset)).AsByte());
+
+                        while (0 != mask) {
+                            var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
+
+                            currentIndex[0] = (((int)offset) + m);
+                            buffer.Write(currentIndex);
+                            mask &= (mask - 1);
+                            mask &= (mask - 1);
+                        }
+
+                        offset += 8;
+                    }
+
+                    lengthToExamine = GetCharVector256SpanLength(offset, length);
+
+                    if (15 < lengthToExamine) {
+                        var searchMask = Vector256.Create(value);
+
+                        do {
+                            var mask = Avx2.MoveMask(Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, offset)).AsByte());
+
+                            while (0 != mask) {
+                                var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
+
+                                currentIndex[0] = (((int)offset) + m);
+                                buffer.Write(currentIndex);
+                                mask &= (mask - 1);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 16;
+                            offset += 16;
+                        } while (15 < lengthToExamine);
+                    }
+
+                    if (offset < length) {
+                        lengthToExamine = (length - offset);
+
+                        goto SequentialScan;
+                    }
+                }
+            }
+        }
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static unsafe int OccurrencesOf(ref byte searchSpace, byte value, int length) {
             var lengthToExamine = ((nuint)length);
             var offset = ((nuint)0);
@@ -547,6 +642,40 @@ namespace ByteTerrace.Ouroboros.Core
             return ((nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / ElementsPerByte) & (Vector128<ushort>.Count - 1));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static void CobsEncode(this ReadOnlySpan<byte> span, byte value, ArrayPoolBufferWriter<byte> buffer) {
+            var length = span.Length;
+
+            if (0 < length) {
+                var code = (stackalloc[] { ((byte)1), });
+                var offset = 0;
+
+                do {
+                    var chunk = span.Slice(offset, Math.Min(254, (length - offset)));
+                    var valueIndex = chunk.IndexOf(value);
+
+                    if (-1 == valueIndex) {
+                        code[0] = ((byte)(chunk.Length + 1));
+                        buffer.Write(code);
+                        buffer.Write(chunk);
+                        offset += chunk.Length;
+                    }
+                    else {
+                        code[0] = ((byte)(valueIndex + 1));
+                        buffer.Write(code);
+
+                        if (0 < valueIndex) {
+                            buffer.Write(chunk[0..valueIndex]);
+                        }
+
+                        offset += (valueIndex + 1);
+                    }
+                } while (offset < length);
+
+                code[0] = value;
+                buffer.Write(code);
+            }
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IndicesOf(this ReadOnlySpan<byte> span, byte value, ArrayPoolBufferWriter<int> buffer) =>
             IndicesOf(
@@ -558,6 +687,17 @@ namespace ByteTerrace.Ouroboros.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IndicesOf(this Span<byte> span, byte value, ArrayPoolBufferWriter<int> buffer) =>
             ((ReadOnlySpan<byte>)span).IndicesOf(value: value, buffer: buffer);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void IndicesOf(this ReadOnlySpan<char> span, char value, ArrayPoolBufferWriter<int> buffer) =>
+            IndicesOf(
+                buffer: buffer,
+                length: span.Length,
+                searchSpace: ref MemoryMarshal.GetReference(span),
+                value: value
+            );
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void IndicesOf(this Span<char> span, char value, ArrayPoolBufferWriter<int> buffer) =>
+            ((ReadOnlySpan<char>)span).IndicesOf(value: value, buffer: buffer);
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int OccurrencesOf(this ReadOnlySpan<byte> span, byte value) =>
             OccurrencesOf(

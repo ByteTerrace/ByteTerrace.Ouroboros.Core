@@ -1,14 +1,11 @@
 ﻿using System.Buffers;
 
+using static ByteTerrace.Ouroboros.Core.Byte;
+
 namespace ByteTerrace.Ouroboros.Core
 {
     public static class BufferWriterExtensions
     {
-        private const byte EscapeSentinel = 27;
-        private const byte FieldSeparator = 31;
-        private const byte LineFeed = 10;
-        private const byte RecordSeparator = 30;
-
         #region ByteFields
         private static ReadOnlySpan<byte> EscapeSentinelBytes =>
             new byte[1] { EscapeSentinel, };
@@ -18,6 +15,8 @@ namespace ByteTerrace.Ouroboros.Core
             new byte[1] { LineFeed, };
         private static ReadOnlySpan<byte> RecordSeparatorBytes =>
             new byte[1] { RecordSeparator, };
+        private static ReadOnlySpan<byte> ZeroBytes =>
+            new byte[1] { Zero, };
         #endregion
         #region CharFields
         private static ReadOnlySpan<char> EscapeSentinelChars =>
@@ -46,5 +45,7 @@ namespace ByteTerrace.Ouroboros.Core
             bufferWriter.Write(RecordSeparatorBytes);
         public static void WriteRecordSeparator(this IBufferWriter<char> bufferWriter) =>
             bufferWriter.Write(RecordSeparatorChars);
+        public static void WriteZero(this IBufferWriter<byte> bufferWriter) =>
+            bufferWriter.Write(ZeroBytes);
     }
 }
