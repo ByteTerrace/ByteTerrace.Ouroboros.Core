@@ -39,7 +39,7 @@ namespace ByteTerrace.Ouroboros.Core
                     yield return decodedBlock;
 
                     decodedBlock.Clear();
-                } while (!isDecodingCompleted);
+                } while (!isDecodingCompleted && !cancellationToken.IsCancellationRequested);
             }
 
             decoder.Convert(
@@ -85,7 +85,7 @@ namespace ByteTerrace.Ouroboros.Core
 
                             offset += (delimiterIndex + 1);
                             delimiterIndex = chunk.FirstSpan[offset..].IndexOf(delimiter);
-                        } while (-1 != delimiterIndex);
+                        } while ((-1 != delimiterIndex) && !cancellationToken.IsCancellationRequested);
                     }
 
                     buffer.Write(chunk.FirstSpan[offset..]);
@@ -126,7 +126,7 @@ namespace ByteTerrace.Ouroboros.Core
 
                             offset += (delimiterIndex + 1);
                             delimiterIndex = chunk.FirstSpan[offset..].IndexOf(delimiter);
-                        } while (-1 != delimiterIndex);
+                        } while ((-1 != delimiterIndex) && !cancellationToken.IsCancellationRequested);
                     }
 
                     buffer.Write(chunk.FirstSpan[offset..]);
@@ -136,6 +136,19 @@ namespace ByteTerrace.Ouroboros.Core
                 }
             }
         }
+        public static IAsyncEnumerable<ReadOnlyMemory<char>> ReadDelimitedAsync(
+            this IAsyncEnumerable<ArrayPoolBufferWriter<char>> source,
+            char delimiter = '\n',
+            int initialBufferSize = 256,
+            CancellationToken cancellationToken = default
+        ) =>
+            source
+                .Select(chunk => new ReadOnlySequence<char>(chunk.WrittenMemory))
+                .ReadDelimitedAsync(
+                    cancellationToken: cancellationToken,
+                    delimiter: delimiter,
+                    initialBufferSize: initialBufferSize
+                );
         public static async IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<byte>>> ReadDelimited2dAsync(
             this IAsyncEnumerable<ReadOnlySequence<byte>> source,
             byte xDelimiter = FieldSeparator,
@@ -170,7 +183,7 @@ namespace ByteTerrace.Ouroboros.Core
                         }
 
                         previousIndex = (currentIndex + 1);
-                    } while (++loopIndex < loopLimit);
+                    } while ((++loopIndex < loopLimit) && !cancellationToken.IsCancellationRequested);
                 }
 
                 if (previousIndex < yChunk.Span.Length) {
@@ -219,7 +232,7 @@ namespace ByteTerrace.Ouroboros.Core
                         }
 
                         previousIndex = (currentIndex + 1);
-                    } while (++loopIndex < loopLimit);
+                    } while ((++loopIndex < loopLimit) && !cancellationToken.IsCancellationRequested);
                 }
 
                 if (previousIndex < yChunk.Span.Length) {
@@ -234,6 +247,19 @@ namespace ByteTerrace.Ouroboros.Core
                 xIndices.Clear();
             }
         }
+        public static IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<char>>> ReadDelimited2dAsync(
+            this IAsyncEnumerable<ArrayPoolBufferWriter<char>> source,
+            char xDelimiter = ',',
+            char yDelimiter = '\n',
+            CancellationToken cancellationToken = default
+        ) =>
+            source
+                .Select(chunk => new ReadOnlySequence<char>(chunk.WrittenMemory))
+                .ReadDelimited2dAsync(
+                    cancellationToken: cancellationToken,
+                    xDelimiter: xDelimiter,
+                    yDelimiter: yDelimiter
+                );
         public static async IAsyncEnumerable<ArrayPoolBufferWriter<byte>> ToBtdrAsync(
             this IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<byte>>> source,
             byte escapeSentinel = EscapeSentinel,
@@ -271,7 +297,7 @@ namespace ByteTerrace.Ouroboros.Core
                         }
 
                         recordBuffer.WriteFieldSeparator();
-                    } while (loopIndex < loopLimit);
+                    } while ((loopIndex < loopLimit) && !cancellationToken.IsCancellationRequested);
                 }
 
                 fieldMemory = recordMemory.Span[^1];
