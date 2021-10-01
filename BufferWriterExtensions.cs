@@ -15,8 +15,6 @@ namespace ByteTerrace.Ouroboros.Core
             new byte[1] { LineFeed, };
         private static ReadOnlySpan<byte> RecordSeparatorBytes =>
             new byte[1] { RecordSeparator, };
-        private static ReadOnlySpan<byte> ZeroBytes =>
-            new byte[1] { Zero, };
         #endregion
         #region CharFields
         private static ReadOnlySpan<char> EscapeSentinelChars =>
@@ -45,7 +43,5 @@ namespace ByteTerrace.Ouroboros.Core
             bufferWriter.Write(RecordSeparatorBytes);
         public static void WriteRecordSeparator(this IBufferWriter<char> bufferWriter) =>
             bufferWriter.Write(RecordSeparatorChars);
-        public static void WriteZero(this IBufferWriter<byte> bufferWriter) =>
-            bufferWriter.Write(ZeroBytes);
     }
 }

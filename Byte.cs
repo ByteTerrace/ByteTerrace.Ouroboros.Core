@@ -6,6 +6,5 @@
         public const byte FieldSeparator = 31;
         public const byte LineFeed = 10;
         public const byte RecordSeparator = 30;
-        public const byte Zero = 0;
     }
 }
