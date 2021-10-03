@@ -672,10 +672,18 @@ namespace ByteTerrace.Ouroboros.Core
                     }
                 } while (offset < length);
 
-                code[0] = value;
-                buffer.Write(code);
+                if (value == span[^1]) {
+                    code[0] = 1;
+                    buffer.Write(code);
+                }
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CobsEncode(this Span<byte> span, byte value, ArrayPoolBufferWriter<byte> buffer) =>
+            ((ReadOnlySpan<byte>)span).CobsEncode(
+                buffer: buffer,
+                value: value
+            );
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IndicesOf(this ReadOnlySpan<byte> span, byte value, ArrayPoolBufferWriter<int> buffer) =>
             IndicesOf(
