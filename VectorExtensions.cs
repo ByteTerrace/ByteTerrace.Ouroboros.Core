@@ -684,21 +684,18 @@ namespace ByteTerrace.Ouroboros.Core
 
                     if (-1 != valueIndex) {
                         code[0] = ((byte)(valueIndex + 1));
-                        buffer.Write(code);
 
                         if (0 < valueIndex) {
-                            buffer.Write(chunk[0..valueIndex]);
+                            chunk = chunk[0..valueIndex];
                         }
-
-                        offset += (valueIndex + 1);
                     }
                     else {
                         code[0] = ((byte)(chunk.Length + 1));
-                        buffer.Write(code);
-                        buffer.Write(chunk);
-                        offset += chunk.Length;
-
                     }
+
+                    buffer.Write(code);
+                    buffer.Write(chunk);
+                    offset += chunk.Length;
                 } while (offset < length);
 
                 if (value == span[^1]) {
