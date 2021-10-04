@@ -262,9 +262,7 @@ namespace ByteTerrace.Ouroboros.Core
                 );
         public static async IAsyncEnumerable<ArrayPoolBufferWriter<byte>> ToBtdrAsync(
             this IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<byte>>> source,
-            byte escapeSentinel = EscapeSentinel,
-            byte fieldSeparator = FieldSeparator,
-            byte recordSeparator = RecordSeparator,
+            bool isBinaryFieldSupportEnabled = false,
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         ) {
             using var fieldBuffer = new ArrayPoolBufferWriter<byte>();
@@ -275,22 +273,21 @@ namespace ByteTerrace.Ouroboros.Core
                 .ConfigureAwait(continueOnCapturedContext: false)
             ) {
                 var fieldMemory = ReadOnlyMemory<byte>.Empty;
-                var recordMemory = record.Memory;
-                var loopLimit = (recordMemory.Length - 1);
+                var loopLimit = (record.Memory.Length - 1);
 
                 if (0 < loopLimit) {
                     var loopIndex = 0;
 
                     do {
-                        fieldMemory = recordMemory.Span[loopIndex++];
+                        fieldMemory = record.Memory.Span[loopIndex++];
 
                         if (0 < fieldMemory.Length) {
-                            if (-1 == fieldMemory.Span.IndexOfAny(fieldSeparator, recordSeparator, escapeSentinel)) {
+                            if (!isBinaryFieldSupportEnabled || (-1 == fieldMemory.Span.IndexOfAny(FieldSeparator, RecordSeparator, EscapeSentinel))) {
                                 recordBuffer.Write(fieldMemory.Span);
                             }
                             else {
-                                recordBuffer.Write(stackalloc[] { escapeSentinel, });
-                                fieldMemory.Span.CobsEncode(escapeSentinel, fieldBuffer);
+                                recordBuffer.WriteEscapeSentinel();
+                                fieldMemory.Span.CobsEncode(EscapeSentinel, fieldBuffer);
                                 recordBuffer.Write(fieldBuffer.WrittenSpan);
                                 fieldBuffer.Clear();
                             }
@@ -300,15 +297,15 @@ namespace ByteTerrace.Ouroboros.Core
                     } while ((loopIndex < loopLimit) && !cancellationToken.IsCancellationRequested);
                 }
 
-                fieldMemory = recordMemory.Span[^1];
+                fieldMemory = record.Memory.Span[^1];
 
                 if (0 < fieldMemory.Length) {
-                    if (-1 == fieldMemory.Span.IndexOfAny(fieldSeparator, recordSeparator, escapeSentinel)) {
+                    if (!isBinaryFieldSupportEnabled || (-1 == fieldMemory.Span.IndexOfAny(FieldSeparator, RecordSeparator, EscapeSentinel))) {
                         recordBuffer.Write(fieldMemory.Span);
                     }
                     else {
-                        recordBuffer.Write(stackalloc[] { escapeSentinel, });
-                        fieldMemory.Span.CobsEncode(escapeSentinel, fieldBuffer);
+                        recordBuffer.WriteEscapeSentinel();
+                        fieldMemory.Span.CobsEncode(EscapeSentinel, fieldBuffer);
                         recordBuffer.Write(fieldBuffer.WrittenSpan);
                         fieldBuffer.Clear();
                     }
