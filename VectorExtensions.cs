@@ -682,20 +682,16 @@ namespace ByteTerrace.Ouroboros.Core
                     var chunk = span.Slice(offset, Math.Min(254, (length - offset)));
                     var valueIndex = chunk.IndexOf(value);
 
-                    if (-1 != valueIndex) {
-                        code[0] = ((byte)(valueIndex + 1));
-
-                        if (0 < valueIndex) {
-                            chunk = chunk[0..valueIndex];
-                        }
-                    }
-                    else {
-                        code[0] = ((byte)(chunk.Length + 1));
+                    if (0 < valueIndex) {
+                        chunk = chunk[0..valueIndex];
                     }
 
+                    var chunkLength = chunk.Length;
+
+                    code[0] = ((byte)(chunkLength + 1));
                     buffer.Write(code);
                     buffer.Write(chunk);
-                    offset += chunk.Length;
+                    offset += chunkLength;
                 } while (offset < length);
 
                 if (value == span[^1]) {
