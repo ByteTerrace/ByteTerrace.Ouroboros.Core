@@ -643,6 +643,34 @@ namespace ByteTerrace.Ouroboros.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static void CobsDecode(this ReadOnlySpan<byte> span, byte value, ArrayPoolBufferWriter<byte> buffer) {
+            if (0 < span.Length) {
+                var nextZeroIndex = span[0];
+                var valueSpan = (stackalloc[] { value, });
+
+                do {
+                    if (value != nextZeroIndex) {
+                        buffer.Write(span[1..nextZeroIndex]);
+                    }
+
+                    var previousZeroIndex = nextZeroIndex;
+
+                    span = span[nextZeroIndex..];
+                    nextZeroIndex = span[0];
+
+                    if (255 != previousZeroIndex) {
+                        buffer.Write(valueSpan);
+                    }
+                } while (value != nextZeroIndex);
+            }
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void CobsDecode(this Span<byte> span, byte value, ArrayPoolBufferWriter<byte> buffer) =>
+            ((ReadOnlySpan<byte>)span).CobsDecode(
+                buffer: buffer,
+                value: value
+            );
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static void CobsEncode(this ReadOnlySpan<byte> span, byte value, ArrayPoolBufferWriter<byte> buffer) {
             var length = span.Length;
 
@@ -654,13 +682,7 @@ namespace ByteTerrace.Ouroboros.Core
                     var chunk = span.Slice(offset, Math.Min(254, (length - offset)));
                     var valueIndex = chunk.IndexOf(value);
 
-                    if (-1 == valueIndex) {
-                        code[0] = ((byte)(chunk.Length + 1));
-                        buffer.Write(code);
-                        buffer.Write(chunk);
-                        offset += chunk.Length;
-                    }
-                    else {
+                    if (-1 != valueIndex) {
                         code[0] = ((byte)(valueIndex + 1));
                         buffer.Write(code);
 
@@ -670,12 +692,22 @@ namespace ByteTerrace.Ouroboros.Core
 
                         offset += (valueIndex + 1);
                     }
+                    else {
+                        code[0] = ((byte)(chunk.Length + 1));
+                        buffer.Write(code);
+                        buffer.Write(chunk);
+                        offset += chunk.Length;
+
+                    }
                 } while (offset < length);
 
                 if (value == span[^1]) {
                     code[0] = 1;
                     buffer.Write(code);
                 }
+
+                code[0] = value;
+                buffer.Write(code);
             }
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

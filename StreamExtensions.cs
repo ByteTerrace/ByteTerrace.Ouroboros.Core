@@ -1,13 +1,15 @@
 ﻿using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
 
+using static ByteTerrace.Ouroboros.Core.Byte;
+
 namespace ByteTerrace.Ouroboros.Core
 {
     public static class StreamExtensions
     {
         public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDelimitedAsync(
             this Stream stream,
-            byte delimiter,
+            byte delimiter = RecordSeparator,
             StreamPipeReaderOptions? streamPipeReaderOptions = default,
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         ) {
