@@ -1,60 +1,52 @@
-﻿using Microsoft.Toolkit.Diagnostics;
-using System.IO.Pipelines;
+﻿using Microsoft.Toolkit.HighPerformance.Buffers;
 using System.Runtime.CompilerServices;
-
-using static ByteTerrace.Ouroboros.Core.Byte;
 
 namespace ByteTerrace.Ouroboros.Core
 {
     public static class StreamExtensions
     {
-        public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDelimitedRecordsAsync(
+
+        public static IEnumerable<ReadOnlyMemory<byte>> Enumerate(
             this Stream stream,
-            byte delimiter = RecordSeparator,
-            StreamPipeReaderOptions? streamPipeReaderOptions = default,
+            int bufferSize = 4096
+        ) {
+            using var buffer = MemoryOwner<byte>.Allocate(size: bufferSize);
+
+            var readResult = stream.Read(buffer: buffer.Span);
+
+            if (0 < readResult) {
+                do {
+                    yield return buffer.Memory.Slice(0, readResult);
+
+                    readResult = stream.Read(buffer: buffer.Span);
+                } while (0 < readResult);
+            }
+        }
+        public static async IAsyncEnumerable<ReadOnlyMemory<byte>> EnumerateAsync(
+            this Stream stream,
+            int bufferSize = 4096,
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         ) {
-            int bufferSize;
-            long length;
+            using var buffer = MemoryOwner<byte>.Allocate(size: bufferSize);
 
-            try {
-                length = stream.Length;
-            }
-            catch (NotSupportedException) {
-                length = 0;
-            }
+            var readResult = await stream
+                .ReadAsync(
+                    buffer: buffer.Memory,
+                    cancellationToken: cancellationToken
+                )
+                .ConfigureAwait(continueOnCapturedContext: false);
 
-            if (length < 16384L) {
-                bufferSize = 4096;
-            }
-            else if (length < 32769L) {
-                bufferSize = 16384;
-            }
-            else if (length < 131072L) {
-                bufferSize = 65536;
-            }
-            else {
-                bufferSize = 131072;
-            }
+            if (0 < readResult) {
+                do {
+                    yield return buffer.Memory.Slice(0, readResult);
 
-            var pipeReaderOptions = (streamPipeReaderOptions ?? new StreamPipeReaderOptions(bufferSize: bufferSize));
-            var pipeReader = PipeReader.Create(stream, pipeReaderOptions);
-
-            try {
-                await foreach (var line in pipeReader
-                    .EnumerateAsync()
-                    .Select(chunk => (chunk.IsSingleSegment ? chunk.First : ThrowHelper.ThrowNotSupportedException<ReadOnlyMemory<byte>>()))
-                    .ReadDelimitedRecordsAsync(delimiter: delimiter)
-                    .WithCancellation(cancellationToken: cancellationToken)
-                    .ConfigureAwait(continueOnCapturedContext: false)
-                ) {
-                    yield return line;
-                }
-            }
-            finally {
-                await pipeReader
-                    .CompleteAsync()
-                    .ConfigureAwait(continueOnCapturedContext: false);
+                    readResult = await stream
+                        .ReadAsync(
+                            buffer: buffer.Memory,
+                            cancellationToken: cancellationToken
+                        )
+                        .ConfigureAwait(continueOnCapturedContext: false);
+                } while (0 < readResult);
             }
         }
     }
