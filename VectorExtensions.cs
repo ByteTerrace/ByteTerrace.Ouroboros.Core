@@ -648,7 +648,7 @@ namespace ByteTerrace.Ouroboros.Core
                 var nextZeroIndex = span[0];
                 var valueSpan = (stackalloc[] { value, });
 
-                do {
+                while (true) {
                     if (value != nextZeroIndex) {
                         buffer.Write(span[1..nextZeroIndex]);
                     }
@@ -658,10 +658,14 @@ namespace ByteTerrace.Ouroboros.Core
                     span = span[nextZeroIndex..];
                     nextZeroIndex = span[0];
 
+                    if (value == nextZeroIndex) {
+                        break;
+                    }
+
                     if (255 != previousZeroIndex) {
                         buffer.Write(valueSpan);
                     }
-                } while (value != nextZeroIndex);
+                }
             }
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -698,9 +702,6 @@ namespace ByteTerrace.Ouroboros.Core
                     code[0] = 1;
                     buffer.Write(code);
                 }
-
-                code[0] = value;
-                buffer.Write(code);
             }
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
