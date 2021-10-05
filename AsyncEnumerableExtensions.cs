@@ -54,115 +54,18 @@ namespace ByteTerrace.Ouroboros.Core
                 yield return decodedBlock;
             }
         }
-        public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDelimitedAsync(
-            this IAsyncEnumerable<ReadOnlySequence<byte>> source,
-            byte delimiter = RecordSeparator,
-            int initialBufferSize = 256,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default
-        ) {
-            using var buffer = new ArrayPoolBufferWriter<byte>(initialCapacity: initialBufferSize);
-
-            await foreach (var chunk in source
-                .WithCancellation(cancellationToken: cancellationToken)
-                .ConfigureAwait(continueOnCapturedContext: false)
-            ) {
-                if (chunk.IsSingleSegment) {
-                    var delimiterIndex = chunk.FirstSpan.IndexOf(delimiter);
-                    var offset = 0;
-
-                    if (-1 != delimiterIndex) {
-                        do {
-                            if (0 == buffer.WrittenCount) {
-                                yield return chunk.First.Slice(offset, delimiterIndex);
-                            }
-                            else {
-                                buffer.Write(chunk.FirstSpan.Slice(offset, delimiterIndex));
-
-                                yield return buffer.WrittenMemory;
-
-                                buffer.Clear();
-                            }
-
-                            offset += (delimiterIndex + 1);
-                            delimiterIndex = chunk.FirstSpan[offset..].IndexOf(delimiter);
-                        } while ((-1 != delimiterIndex) && !cancellationToken.IsCancellationRequested);
-                    }
-
-                    buffer.Write(chunk.FirstSpan[offset..]);
-                }
-                else {
-                    throw new NotSupportedException();
-                }
-            }
-        }
-        public static async IAsyncEnumerable<ReadOnlyMemory<char>> ReadDelimitedAsync(
-            this IAsyncEnumerable<ReadOnlySequence<char>> source,
-            char delimiter = '\n',
-            int initialBufferSize = 256,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default
-        ) {
-            using var buffer = new ArrayPoolBufferWriter<char>(initialCapacity: initialBufferSize);
-
-            await foreach (var chunk in source
-                .WithCancellation(cancellationToken: cancellationToken)
-                .ConfigureAwait(continueOnCapturedContext: false)
-            ) {
-                if (chunk.IsSingleSegment) {
-                    var delimiterIndex = chunk.FirstSpan.IndexOf(delimiter);
-                    var offset = 0;
-
-                    if (-1 != delimiterIndex) {
-                        do {
-                            if (0 == buffer.WrittenCount) {
-                                yield return chunk.First.Slice(offset, delimiterIndex);
-                            }
-                            else {
-                                buffer.Write(chunk.FirstSpan.Slice(offset, delimiterIndex));
-
-                                yield return buffer.WrittenMemory;
-
-                                buffer.Clear();
-                            }
-
-                            offset += (delimiterIndex + 1);
-                            delimiterIndex = chunk.FirstSpan[offset..].IndexOf(delimiter);
-                        } while ((-1 != delimiterIndex) && !cancellationToken.IsCancellationRequested);
-                    }
-
-                    buffer.Write(chunk.FirstSpan[offset..]);
-                }
-                else {
-                    throw new NotSupportedException();
-                }
-            }
-        }
-        public static IAsyncEnumerable<ReadOnlyMemory<char>> ReadDelimitedAsync(
-            this IAsyncEnumerable<ArrayPoolBufferWriter<char>> source,
-            char delimiter = '\n',
-            int initialBufferSize = 256,
-            CancellationToken cancellationToken = default
-        ) =>
-            source
-                .Select(chunk => new ReadOnlySequence<char>(chunk.WrittenMemory))
-                .ReadDelimitedAsync(
-                    cancellationToken: cancellationToken,
-                    delimiter: delimiter,
-                    initialBufferSize: initialBufferSize
-                );
-        public static async IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<byte>>> ReadDelimited2dAsync(
-            this IAsyncEnumerable<ReadOnlySequence<byte>> source,
-            byte xDelimiter = FieldSeparator,
-            byte yDelimiter = RecordSeparator,
+        public static async IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<byte>>> ReadDelimitedFieldsAsync(
+            this IAsyncEnumerable<ReadOnlyMemory<byte>> source,
+            byte delimiter = FieldSeparator,
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         ) {
             using var xIndices = new ArrayPoolBufferWriter<int>();
 
             await foreach (var yChunk in source
-                .ReadDelimitedAsync(yDelimiter)
                 .WithCancellation(cancellationToken: cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false)
             ) {
-                yChunk.Span.IndicesOf(xDelimiter, xIndices);
+                yChunk.Span.IndicesOf(delimiter, xIndices);
 
                 var loopLimit = xIndices.WrittenCount;
                 var previousIndex = 0;
@@ -198,20 +101,18 @@ namespace ByteTerrace.Ouroboros.Core
                 xIndices.Clear();
             }
         }
-        public static async IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<char>>> ReadDelimited2dAsync(
-            this IAsyncEnumerable<ReadOnlySequence<char>> source,
-            char xDelimiter = ',',
-            char yDelimiter = '\n',
+        public static async IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<char>>> ReadDelimitedFieldsAsync(
+            this IAsyncEnumerable<ReadOnlyMemory<char>> source,
+            char delimiter = ',',
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         ) {
             using var xIndices = new ArrayPoolBufferWriter<int>();
 
             await foreach (var yChunk in source
-                .ReadDelimitedAsync(yDelimiter)
                 .WithCancellation(cancellationToken: cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false)
             ) {
-                yChunk.Span.IndicesOf(xDelimiter, xIndices);
+                yChunk.Span.IndicesOf(delimiter, xIndices);
 
                 var loopLimit = xIndices.WrittenCount;
                 var previousIndex = 0;
@@ -247,19 +148,78 @@ namespace ByteTerrace.Ouroboros.Core
                 xIndices.Clear();
             }
         }
-        public static IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<char>>> ReadDelimited2dAsync(
-            this IAsyncEnumerable<ArrayPoolBufferWriter<char>> source,
-            char xDelimiter = ',',
-            char yDelimiter = '\n',
-            CancellationToken cancellationToken = default
-        ) =>
-            source
-                .Select(chunk => new ReadOnlySequence<char>(chunk.WrittenMemory))
-                .ReadDelimited2dAsync(
-                    cancellationToken: cancellationToken,
-                    xDelimiter: xDelimiter,
-                    yDelimiter: yDelimiter
-                );
+        public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDelimitedRecordsAsync(
+            this IAsyncEnumerable<ReadOnlyMemory<byte>> source,
+            byte delimiter = RecordSeparator,
+            int initialBufferSize = 256,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        ) {
+            using var buffer = new ArrayPoolBufferWriter<byte>(initialCapacity: initialBufferSize);
+
+            await foreach (var chunk in source
+                .WithCancellation(cancellationToken: cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false)
+            ) {
+                var delimiterIndex = chunk.Span.IndexOf(delimiter);
+                var offset = 0;
+
+                if (-1 != delimiterIndex) {
+                    do {
+                        if (0 == buffer.WrittenCount) {
+                            yield return chunk.Slice(offset, delimiterIndex);
+                        }
+                        else {
+                            buffer.Write(chunk.Span.Slice(offset, delimiterIndex));
+
+                            yield return buffer.WrittenMemory;
+
+                            buffer.Clear();
+                        }
+
+                        offset += (delimiterIndex + 1);
+                        delimiterIndex = chunk.Span[offset..].IndexOf(delimiter);
+                    } while ((-1 != delimiterIndex) && !cancellationToken.IsCancellationRequested);
+                }
+
+                buffer.Write(chunk.Span[offset..]);
+            }
+        }
+        public static async IAsyncEnumerable<ReadOnlyMemory<char>> ReadDelimitedRecordsAsync(
+            this IAsyncEnumerable<ReadOnlyMemory<char>> source,
+            char delimiter = '\n',
+            int initialBufferSize = 256,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        ) {
+            using var buffer = new ArrayPoolBufferWriter<char>(initialCapacity: initialBufferSize);
+
+            await foreach (var chunk in source
+                .WithCancellation(cancellationToken: cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false)
+            ) {
+                var delimiterIndex = chunk.Span.IndexOf(delimiter);
+                var offset = 0;
+
+                if (-1 != delimiterIndex) {
+                    do {
+                        if (0 == buffer.WrittenCount) {
+                            yield return chunk.Slice(offset, delimiterIndex);
+                        }
+                        else {
+                            buffer.Write(chunk.Span.Slice(offset, delimiterIndex));
+
+                            yield return buffer.WrittenMemory;
+
+                            buffer.Clear();
+                        }
+
+                        offset += (delimiterIndex + 1);
+                        delimiterIndex = chunk.Span[offset..].IndexOf(delimiter);
+                    } while ((-1 != delimiterIndex) && !cancellationToken.IsCancellationRequested);
+                }
+
+                buffer.Write(chunk.Span[offset..]);
+            }
+        }
         public static async IAsyncEnumerable<ArrayPoolBufferWriter<byte>> ToBtdrAsync(
             this IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<byte>>> source,
             bool isBinaryFieldSupportEnabled = false,

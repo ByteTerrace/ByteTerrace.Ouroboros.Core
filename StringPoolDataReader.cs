@@ -2,16 +2,21 @@
 using Microsoft.Toolkit.HighPerformance.Buffers;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace ByteTerrace.Ouroboros.Core
 {
     public sealed class StringPoolDataReader : IDataReader
     {
-        private IEnumerator<IReadOnlyList<ReadOnlyMemory<char>>> Enumerator { get; }
+        private int m_recordsAffected;
+
+        private IEnumerator<MemoryOwner<ReadOnlyMemory<char>>> Enumerator { get; }
         private StringPool ValueStringPool { get; }
 
-        public object this[int i] =>
-            ThrowHelper.ThrowNotSupportedException<object>();
+        public object this[int i] {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ValueStringPool.GetOrAdd(span: Enumerator.Current.Span[i].Span);
+        }
         public object this[string name] =>
             ThrowHelper.ThrowNotSupportedException<object>();
         public int Depth =>
@@ -19,14 +24,17 @@ namespace ByteTerrace.Ouroboros.Core
         public int FieldCount { get; init; }
         public bool IsClosed =>
             ThrowHelper.ThrowNotSupportedException<bool>();
-        public int RecordsAffected =>
-            ThrowHelper.ThrowNotSupportedException<int>();
+        public int RecordsAffected {
+            get => m_recordsAffected;
+            init => m_recordsAffected = value;
+        }
 
-        public StringPoolDataReader(IAsyncEnumerable<IReadOnlyList<ReadOnlyMemory<char>>> source, int fieldCount) {
+        public StringPoolDataReader(IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<char>>> source, int fieldCount) {
             Enumerator = source
                 .ToEnumerable()
                 .GetEnumerator();
             FieldCount = fieldCount;
+            RecordsAffected = -1;
             ValueStringPool = new StringPool(minimumSize: fieldCount);
         }
 
@@ -35,11 +43,16 @@ namespace ByteTerrace.Ouroboros.Core
         public void Dispose() =>
             Enumerator.Dispose();
         public object GetValue(int i) =>
-            ValueStringPool.GetOrAdd(span: Enumerator.Current[i].Span);
+            this[i];
+        public bool IsDBNull(int i) =>
+            Enumerator.Current.Span[i].IsEmpty;
         public bool NextResult() =>
             false;
-        public bool Read() =>
-            Enumerator.MoveNext();
+        public bool Read() {
+            ++m_recordsAffected;
+
+            return Enumerator.MoveNext();
+        }
 
         public bool GetBoolean(int i) =>
             ThrowHelper.ThrowNotSupportedException<bool>();
@@ -85,7 +98,5 @@ namespace ByteTerrace.Ouroboros.Core
             ThrowHelper.ThrowNotSupportedException<string>();
         public int GetValues(object[] values) =>
             ThrowHelper.ThrowNotSupportedException<int>();
-        public bool IsDBNull(int i) =>
-            ThrowHelper.ThrowNotSupportedException<bool>();
     }
 }

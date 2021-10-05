@@ -1,4 +1,5 @@
-﻿using System.IO.Pipelines;
+﻿using Microsoft.Toolkit.Diagnostics;
+using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
 
 using static ByteTerrace.Ouroboros.Core.Byte;
@@ -7,7 +8,7 @@ namespace ByteTerrace.Ouroboros.Core
 {
     public static class StreamExtensions
     {
-        public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDelimitedAsync(
+        public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDelimitedRecordsAsync(
             this Stream stream,
             byte delimiter = RecordSeparator,
             StreamPipeReaderOptions? streamPipeReaderOptions = default,
@@ -42,7 +43,8 @@ namespace ByteTerrace.Ouroboros.Core
             try {
                 await foreach (var line in pipeReader
                     .EnumerateAsync()
-                    .ReadDelimitedAsync(delimiter: delimiter)
+                    .Select(chunk => (chunk.IsSingleSegment ? chunk.First : ThrowHelper.ThrowNotSupportedException<ReadOnlyMemory<byte>>()))
+                    .ReadDelimitedRecordsAsync(delimiter: delimiter)
                     .WithCancellation(cancellationToken: cancellationToken)
                     .ConfigureAwait(continueOnCapturedContext: false)
                 ) {
