@@ -149,7 +149,7 @@ namespace ByteTerrace.Ouroboros.Core
                     delimiter: delimiter,
                     initialBufferSize: initialBufferSize
                 );
-        public static async IAsyncEnumerable<IReadOnlyList<MemoryOwner<byte>>> ReadDelimited2dAsync(
+        public static async IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<byte>>> ReadDelimited2dAsync(
             this IAsyncEnumerable<ReadOnlySequence<byte>> source,
             byte xDelimiter = FieldSeparator,
             byte yDelimiter = RecordSeparator,
@@ -166,7 +166,8 @@ namespace ByteTerrace.Ouroboros.Core
 
                 var loopLimit = xIndices.WrittenCount;
                 var previousIndex = 0;
-                var xChunk = new List<MemoryOwner<byte>>(capacity: (loopLimit + 1));
+
+                using var xChunk = MemoryOwner<ReadOnlyMemory<byte>>.Allocate(size: (loopLimit + 1));
 
                 if (0 < loopLimit) {
                     var loopIndex = 0;
@@ -175,14 +176,10 @@ namespace ByteTerrace.Ouroboros.Core
                         var currentIndex = xIndices.WrittenSpan[loopIndex];
 
                         if (currentIndex != previousIndex) {
-                            var xMemory = yChunk[previousIndex..currentIndex];
-                            var xMemoryOwner = MemoryOwner<byte>.Allocate(size: xMemory.Length);
-
-                            xMemory.Span.CopyTo(xMemoryOwner.Span);
-                            xChunk.Add(xMemoryOwner);
+                            xChunk.Span[loopIndex] = yChunk[previousIndex..currentIndex];
                         }
                         else {
-                            xChunk.Add(MemoryOwner<byte>.Empty);
+                            xChunk.Span[loopIndex] = ReadOnlyMemory<byte>.Empty;
                         }
 
                         previousIndex = (currentIndex + 1);
@@ -190,22 +187,18 @@ namespace ByteTerrace.Ouroboros.Core
                 }
 
                 if (previousIndex < yChunk.Span.Length) {
-                    var xMemory = yChunk[previousIndex..];
-                    var xMemoryOwner = MemoryOwner<byte>.Allocate(size: xMemory.Length);
-
-                    xMemory.Span.CopyTo(xMemoryOwner.Span);
-                    xChunk.Add(xMemoryOwner);
+                    xChunk.Span[^1] = yChunk[previousIndex..];
                 }
                 else {
-                    xChunk.Add(MemoryOwner<byte>.Empty);
+                    xChunk.Span[^1] = ReadOnlyMemory<byte>.Empty;
                 }
 
-                yield return xChunk.AsReadOnly();
+                yield return xChunk;
 
                 xIndices.Clear();
             }
         }
-        public static async IAsyncEnumerable<IReadOnlyList<MemoryOwner<char>>> ReadDelimited2dAsync(
+        public static async IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<char>>> ReadDelimited2dAsync(
             this IAsyncEnumerable<ReadOnlySequence<char>> source,
             char xDelimiter = ',',
             char yDelimiter = '\n',
@@ -222,7 +215,8 @@ namespace ByteTerrace.Ouroboros.Core
 
                 var loopLimit = xIndices.WrittenCount;
                 var previousIndex = 0;
-                var xChunk = new List<MemoryOwner<char>>(capacity: (loopLimit + 1));
+
+                using var xChunk = MemoryOwner<ReadOnlyMemory<char>>.Allocate(size: (loopLimit + 1));
 
                 if (0 < loopLimit) {
                     var loopIndex = 0;
@@ -231,14 +225,10 @@ namespace ByteTerrace.Ouroboros.Core
                         var currentIndex = xIndices.WrittenSpan[loopIndex];
 
                         if (currentIndex != previousIndex) {
-                            var xMemory = yChunk[previousIndex..currentIndex];
-                            var xMemoryOwner = MemoryOwner<char>.Allocate(size: xMemory.Length);
-
-                            xMemory.Span.CopyTo(xMemoryOwner.Span);
-                            xChunk.Add(xMemoryOwner);
+                            xChunk.Span[loopIndex] = yChunk[previousIndex..currentIndex];
                         }
                         else {
-                            xChunk.Add(MemoryOwner<char>.Empty);
+                            xChunk.Span[loopIndex] = ReadOnlyMemory<char>.Empty;
                         }
 
                         previousIndex = (currentIndex + 1);
@@ -246,22 +236,18 @@ namespace ByteTerrace.Ouroboros.Core
                 }
 
                 if (previousIndex < yChunk.Span.Length) {
-                    var xMemory = yChunk[previousIndex..];
-                    var xMemoryOwner = MemoryOwner<char>.Allocate(size: xMemory.Length);
-
-                    xMemory.Span.CopyTo(xMemoryOwner.Span);
-                    xChunk.Add(xMemoryOwner);
+                    xChunk.Span[^1] = yChunk[previousIndex..];
                 }
                 else {
-                    xChunk.Add(MemoryOwner<char>.Empty);
+                    xChunk.Span[^1] = ReadOnlyMemory<char>.Empty;
                 }
 
-                yield return xChunk.AsReadOnly();
+                yield return xChunk;
 
                 xIndices.Clear();
             }
         }
-        public static IAsyncEnumerable<IReadOnlyList<MemoryOwner<char>>> ReadDelimited2dAsync(
+        public static IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<char>>> ReadDelimited2dAsync(
             this IAsyncEnumerable<ArrayPoolBufferWriter<char>> source,
             char xDelimiter = ',',
             char yDelimiter = '\n',
