@@ -24,10 +24,10 @@ namespace ByteTerrace.Ouroboros.Core
             ((length - offset) & ~(Vector256<ushort>.Count - 1));
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Vector128<byte> LoadVector128(ref byte start, nuint offset) =>
-            Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref start, offset));
+            Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.AddByteOffset(ref start, new IntPtr((long)offset)));
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Vector256<byte> LoadVector256(ref byte start, nuint offset) =>
-            Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref start, offset));
+            Unsafe.ReadUnaligned<Vector256<byte>>(ref Unsafe.AddByteOffset(ref start, new IntPtr((long)offset)));
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Vector128<ushort> LoadVector128(ref char start, nint offset) =>
             Unsafe.ReadUnaligned<Vector128<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, offset)));
@@ -48,37 +48,37 @@ namespace ByteTerrace.Ouroboros.Core
 
         SequentialScan:
             while (7 < lengthToExamine) {
-                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, offset);
+                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset));
 
                 if (value == current) {
                     currentIndex[0] = ((int)offset);
                     buffer.Write(currentIndex);
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 1)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(1))) {
                     currentIndex[0] = (((int)offset) + 1);
                     buffer.Write(currentIndex);
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 2)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(2))) {
                     currentIndex[0] = (((int)offset) + 2);
                     buffer.Write(currentIndex);
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 3)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(3))) {
                     currentIndex[0] = (((int)offset) + 3);
                     buffer.Write(currentIndex);
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 4)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(4))) {
                     currentIndex[0] = (((int)offset) + 4);
                     buffer.Write(currentIndex);
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 5)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(5))) {
                     currentIndex[0] = (((int)offset) + 5);
                     buffer.Write(currentIndex);
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 6)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(6))) {
                     currentIndex[0] = (((int)offset) + 6);
                     buffer.Write(currentIndex);
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 7)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(7))) {
                     currentIndex[0] = (((int)offset) + 7);
                     buffer.Write(currentIndex);
                 }
@@ -88,21 +88,21 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             while (3 < lengthToExamine) {
-                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, offset);
+                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset));
 
                 if (value == current) {
                     currentIndex[0] = ((int)offset);
                     buffer.Write(currentIndex);
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 1)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(1))) {
                     currentIndex[0] = (((int)offset) + 1);
                     buffer.Write(currentIndex);
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 2)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(2))) {
                     currentIndex[0] = (((int)offset) + 2);
                     buffer.Write(currentIndex);
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 3)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(3))) {
                     currentIndex[0] = (((int)offset) + 3);
                     buffer.Write(currentIndex);
                 }
@@ -112,7 +112,7 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             while (0 < lengthToExamine) {
-                if (value == Unsafe.AddByteOffset(ref searchSpace, offset)) {
+                if (value == Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset))) {
                     currentIndex[0] = ((int)offset);
                     buffer.Write(currentIndex);
                 }
@@ -274,30 +274,30 @@ namespace ByteTerrace.Ouroboros.Core
 
         SequentialScan:
             while (7 < lengthToExamine) {
-                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, offset);
+                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset));
 
                 if (value == current) {
                     ++result;
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 1)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(1))) {
                     ++result;
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 2)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(2))) {
                     ++result;
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 3)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(3))) {
                     ++result;
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 4)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(4))) {
                     ++result;
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 5)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(5))) {
                     ++result;
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 6)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(6))) {
                     ++result;
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 7)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(7))) {
                     ++result;
                 }
 
@@ -306,18 +306,18 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             while (3 < lengthToExamine) {
-                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, offset);
+                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset));
 
                 if (value == current) {
                     ++result;
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 1)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(1))) {
                     ++result;
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 2)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(2))) {
                     ++result;
                 }
-                if (value == Unsafe.AddByteOffset(ref current, 3)) {
+                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(3))) {
                     ++result;
                 }
 
@@ -326,7 +326,7 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             while (0 < lengthToExamine) {
-                if (value == Unsafe.AddByteOffset(ref searchSpace, offset)) {
+                if (value == Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset))) {
                     ++result;
                 }
 
@@ -367,7 +367,7 @@ namespace ByteTerrace.Ouroboros.Core
                                 offset += 128;
                             } while (loopIndex < loopLimit);
 
-                            lengthToExamine -= (128 * loopLimit);
+                            lengthToExamine -= ((uint)(128 * loopLimit));
                             sum = Avx2.Add(sum, Avx2.SumAbsoluteDifferences(accumulator0.AsByte(), Vector256<byte>.Zero).AsInt64());
                             sum = Avx2.Add(sum, Avx2.SumAbsoluteDifferences(accumulator1.AsByte(), Vector256<byte>.Zero).AsInt64());
                             sum = Avx2.Add(sum, Avx2.SumAbsoluteDifferences(accumulator2.AsByte(), Vector256<byte>.Zero).AsInt64());
@@ -428,7 +428,7 @@ namespace ByteTerrace.Ouroboros.Core
                                 offset += 64;
                             } while (loopIndex < loopLimit);
 
-                            lengthToExamine -= (64 * loopLimit);
+                            lengthToExamine -= ((uint)(64 * loopLimit));
                             sum = Sse2.Add(sum, Sse2.SumAbsoluteDifferences(accumulator0.AsByte(), Vector128<byte>.Zero).AsInt64());
                             sum = Sse2.Add(sum, Sse2.SumAbsoluteDifferences(accumulator1.AsByte(), Vector128<byte>.Zero).AsInt64());
                             sum = Sse2.Add(sum, Sse2.SumAbsoluteDifferences(accumulator2.AsByte(), Vector128<byte>.Zero).AsInt64());
@@ -536,7 +536,7 @@ namespace ByteTerrace.Ouroboros.Core
                                 offset += 64;
                             } while (loopIndex < loopLimit);
 
-                            lengthToExamine -= (64 * loopLimit);
+                            lengthToExamine -= ((int)(64 * loopLimit));
                             sum = Avx2.Add(sum, Avx2.SumAbsoluteDifferences(accumulator0.AsByte(), Vector256<byte>.Zero).AsInt64());
                             sum = Avx2.Add(sum, Avx2.SumAbsoluteDifferences(accumulator1.AsByte(), Vector256<byte>.Zero).AsInt64());
                             sum = Avx2.Add(sum, Avx2.SumAbsoluteDifferences(accumulator2.AsByte(), Vector256<byte>.Zero).AsInt64());
@@ -597,7 +597,7 @@ namespace ByteTerrace.Ouroboros.Core
                                 offset += 32;
                             } while (loopIndex < loopLimit);
 
-                            lengthToExamine -= (32 * loopLimit);
+                            lengthToExamine -= ((int)(32 * loopLimit));
                             sum = Sse2.Add(sum, Sse2.SumAbsoluteDifferences(accumulator0.AsByte(), Vector128<byte>.Zero).AsInt64());
                             sum = Sse2.Add(sum, Sse2.SumAbsoluteDifferences(accumulator1.AsByte(), Vector128<byte>.Zero).AsInt64());
                             sum = Sse2.Add(sum, Sse2.SumAbsoluteDifferences(accumulator2.AsByte(), Vector128<byte>.Zero).AsInt64());

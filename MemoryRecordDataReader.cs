@@ -1,14 +1,13 @@
 ﻿using Microsoft.Toolkit.Diagnostics;
 using Microsoft.Toolkit.HighPerformance.Buffers;
 using System.Data;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace ByteTerrace.Ouroboros.Core
 {
     public sealed class MemoryRecordDataReader : IDataReader
     {
-        private int m_recordsAffected;
+        private int m_recordsAffected = -1;
 
         private IEnumerator<MemoryOwner<ReadOnlyMemory<char>>> Enumerator { get; }
         private StringPool FieldValueCache { get; }
@@ -21,18 +20,16 @@ namespace ByteTerrace.Ouroboros.Core
             ThrowHelper.ThrowNotSupportedException<object>();
         public int Depth =>
             1;
-        public int FieldCount { get; init; }
+        public int FieldCount { get; }
         public bool IsClosed =>
             ThrowHelper.ThrowNotSupportedException<bool>();
         public int RecordsAffected {
             get => m_recordsAffected;
-            init => m_recordsAffected = value;
         }
 
         public MemoryRecordDataReader(IEnumerable<MemoryOwner<ReadOnlyMemory<char>>> source, int fieldCount) {
             Enumerator = source.GetEnumerator();
             FieldCount = fieldCount;
-            RecordsAffected = -1;
             FieldValueCache = new StringPool(minimumSize: fieldCount);
         }
         public MemoryRecordDataReader(IAsyncEnumerable<MemoryOwner<ReadOnlyMemory<char>>> source, int fieldCount) : this(source.ToEnumerable(), fieldCount) { }
@@ -59,9 +56,8 @@ namespace ByteTerrace.Ouroboros.Core
             ThrowHelper.ThrowNotSupportedException<byte>();
         public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length) =>
             ThrowHelper.ThrowNotSupportedException<long>();
-        public char GetChar(int i) {
-            throw new NotImplementedException();
-        }
+        public char GetChar(int i) =>
+            ThrowHelper.ThrowNotSupportedException<char>();
         public long GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length) =>
             ThrowHelper.ThrowNotSupportedException<long>();
         public IDataReader GetData(int i) =>
@@ -74,7 +70,6 @@ namespace ByteTerrace.Ouroboros.Core
             ThrowHelper.ThrowNotSupportedException<decimal>();
         public double GetDouble(int i) =>
             ThrowHelper.ThrowNotSupportedException<double>();
-        [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
         public Type GetFieldType(int i) =>
             ThrowHelper.ThrowNotSupportedException<Type>();
         public float GetFloat(int i) =>
