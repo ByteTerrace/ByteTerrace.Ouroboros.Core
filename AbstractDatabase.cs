@@ -90,7 +90,7 @@ namespace ByteTerrace.Ouroboros.Core
 
             parameter.ParameterName = name;
 
-            if (!(value is XmlDocument valueAsXml)) {
+            if (value is not XmlDocument valueAsXml) {
                 parameter.Value = value;
             }
             else {

@@ -5,10 +5,10 @@ namespace ByteTerrace.Ouroboros.Core
 {
     public sealed class SqlClientDatabase : AbstractDatabase<SqlConnection, SqlCommand, SqlCommandBuilder, SqlDataReader, SqlParameter>
     {
-        #region Static Members
-        private static SqlCommandBuilder SqlCommandBuilder => new();
+        #region Instance Members
+        public SqlClientDatabase(SqlConnection connection) : base(new SqlCommandBuilder(), connection) { }
 
-        private static SqlBulkCopy InitializeBulkCopy(IDataReader dataReader, SqlConnection dbConnection, string schemaName, string tableName, params SqlBulkCopyColumnMapping[]? columnMappings) {
+        private SqlBulkCopy InitializeBulkCopy(IDataReader dataReader, SqlConnection dbConnection, string schemaName, string tableName, params SqlBulkCopyColumnMapping[]? columnMappings) {
             if ((columnMappings is null) || (0 < columnMappings.Length)) {
                 columnMappings = Enumerable
                     .Range(0, dataReader.FieldCount)
@@ -16,10 +16,10 @@ namespace ByteTerrace.Ouroboros.Core
                     .ToArray();
             }
 
-            schemaName = SqlCommandBuilder.UnquoteIdentifier(schemaName);
-            schemaName = SqlCommandBuilder.QuoteIdentifier(schemaName);
-            tableName = SqlCommandBuilder.UnquoteIdentifier(tableName);
-            tableName = SqlCommandBuilder.QuoteIdentifier(tableName);
+            schemaName = CommandBuilder.UnquoteIdentifier(schemaName);
+            schemaName = CommandBuilder.QuoteIdentifier(schemaName);
+            tableName = CommandBuilder.UnquoteIdentifier(tableName);
+            tableName = CommandBuilder.QuoteIdentifier(tableName);
 
             var bulkCopy = new SqlBulkCopy(dbConnection, SqlBulkCopyOptions.CheckConstraints, null) {
                 BatchSize = 25000,
@@ -34,10 +34,6 @@ namespace ByteTerrace.Ouroboros.Core
 
             return bulkCopy;
         }
-        #endregion
-
-        #region Instance Members
-        public SqlClientDatabase(SqlConnection connection) : base(new SqlCommandBuilder(), connection) { }
 
         public void ExecuteBulkCopy(IDataReader sourceDataReader, string targetSchemaName, string targetTableName, SqlBulkCopyColumnMapping[]? columnMappings = default) {
             using var bulkCopy = InitializeBulkCopy(

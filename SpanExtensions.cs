@@ -8,7 +8,10 @@ using System.Runtime.Intrinsics.X86;
 
 namespace ByteTerrace.Ouroboros.Core
 {
-    public static class VectorExtensions
+    /// <summary>
+    /// A collection of extension methods that directly or indirectly augment the <see cref="Span{T}"/> struct.
+    /// </summary>
+    public static class SpanExtensions
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static nuint GetByteVector128SpanLength(nuint offset, int length) =>

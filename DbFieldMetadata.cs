@@ -1,7 +1,7 @@
 ﻿namespace ByteTerrace.Ouroboros.Core
 {
     /// <summary>
-    /// Represents the metadata about a set of fields in a database row.
+    /// Represents the metadata of a set of fields in a database row.
     /// </summary>
     public readonly struct DbFieldMetadata
     {

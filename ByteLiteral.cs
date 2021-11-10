@@ -1,6 +1,6 @@
 ﻿namespace ByteTerrace.Ouroboros.Core
 {
-    public sealed class Byte
+    public static class ByteLiteral
     {
         public const byte EscapeSentinel = 27;
         public const byte FieldSeparator = 31;

@@ -1,6 +1,6 @@
 ﻿using System.Buffers;
 
-using static ByteTerrace.Ouroboros.Core.Byte;
+using static ByteTerrace.Ouroboros.Core.ByteLiteral;
 
 namespace ByteTerrace.Ouroboros.Core
 {

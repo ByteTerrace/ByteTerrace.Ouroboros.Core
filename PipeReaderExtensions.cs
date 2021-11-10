@@ -4,6 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace ByteTerrace.Ouroboros.Core
 {
+    /// <summary>
+    /// A collection of extension methods that directly or indirectly augment the <see cref="PipeReader"/> class.
+    /// </summary>
     public static class PipeReaderExtensions
     {
         public static async IAsyncEnumerable<ReadOnlySequence<byte>> EnumerateAsync(

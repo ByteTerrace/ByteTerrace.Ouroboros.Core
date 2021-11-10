@@ -3,7 +3,7 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-using static ByteTerrace.Ouroboros.Core.Byte;
+using static ByteTerrace.Ouroboros.Core.ByteLiteral;
 
 namespace ByteTerrace.Ouroboros.Core
 {
