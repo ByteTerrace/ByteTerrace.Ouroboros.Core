@@ -174,8 +174,7 @@ namespace ByteTerrace.Ouroboros.Core
             var lengthToExamine = ((nint)length);
             var offset = ((nint)0);
 
-            if (0 != ((int)Unsafe.AsPointer(ref searchSpace) & 1)) { }
-            else if (Sse2.IsSupported || Avx2.IsSupported) {
+            if (Sse2.IsSupported || Avx2.IsSupported) {
                 if (15 < length) {
                     lengthToExamine = UnalignedCountVector128(ref searchSpace);
                 }
@@ -240,6 +239,238 @@ namespace ByteTerrace.Ouroboros.Core
 
                         do {
                             var mask = Avx2.MoveMask(Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, offset)).AsByte());
+
+                            while (0 != mask) {
+                                var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
+
+                                currentIndex[0] = (((int)offset) + m);
+                                buffer.Write(currentIndex);
+                                mask &= (mask - 1);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 16;
+                            offset += 16;
+                        } while (15 < lengthToExamine);
+                    }
+
+                    if (offset < length) {
+                        lengthToExamine = (length - offset);
+
+                        goto SequentialScan;
+                    }
+                }
+            }
+        }
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        private static unsafe void IndicesOf(ref char searchSpace, char value0, char value1, int length, ArrayPoolBufferWriter<int> buffer) {
+            var currentIndex = (stackalloc[] { 0, });
+            var lengthToExamine = ((nint)length);
+            var offset = ((nint)0);
+
+            if (Sse2.IsSupported || Avx2.IsSupported) {
+                if (15 < length) {
+                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
+                }
+            }
+
+        SequentialScan:
+            int temp;
+
+            while (3 < lengthToExamine) {
+                ref var current = ref Unsafe.Add(ref searchSpace, offset);
+
+                temp = current;
+
+                if ((value0 == temp) || (value1 == temp)) {
+                    currentIndex[0] = ((int)offset);
+                    buffer.Write(currentIndex);
+                }
+
+                temp = Unsafe.Add(ref current, 1);
+
+                if ((value0 == temp) || (value1 == temp)) {
+                    currentIndex[0] = (((int)offset) + 1);
+                    buffer.Write(currentIndex);
+                }
+
+                temp = Unsafe.Add(ref current, 2);
+
+                if ((value0 == temp) || (value1 == temp)) {
+                    currentIndex[0] = (((int)offset) + 2);
+                    buffer.Write(currentIndex);
+                }
+
+                temp = Unsafe.Add(ref current, 3);
+
+                if ((value0 == temp) || (value1 == temp)) {
+                    currentIndex[0] = (((int)offset) + 3);
+                    buffer.Write(currentIndex);
+                }
+
+                lengthToExamine -= 4;
+                offset += 4;
+            }
+
+            while (0 < lengthToExamine) {
+                temp = Unsafe.Add(ref searchSpace, offset);
+
+                if ((value0 == temp) || (value1 == temp)) {
+                    currentIndex[0] = ((int)offset);
+                    buffer.Write(currentIndex);
+                }
+
+                --lengthToExamine;
+                ++offset;
+            }
+
+            if (offset < length) {
+                if (Avx2.IsSupported) {
+                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref searchSpace, offset))) & (Vector256<byte>.Count - 1))) {
+                        var value0Vector = Vector128.Create(value0);
+                        var value1Vector = Vector128.Create(value1);
+
+                        var searchVector = LoadVector128(ref searchSpace, offset);
+                        var mask = Sse2.MoveMask(Sse2.Or(Sse2.CompareEqual(value0Vector, searchVector), Sse2.CompareEqual(value1Vector, searchVector)).AsByte());
+
+                        while (0 != mask) {
+                            var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
+
+                            currentIndex[0] = (((int)offset) + m);
+                            buffer.Write(currentIndex);
+                            mask &= (mask - 1);
+                            mask &= (mask - 1);
+                        }
+
+                        offset += 8;
+                    }
+
+                    lengthToExamine = GetCharVector256SpanLength(offset, length);
+
+                    if (15 < lengthToExamine) {
+                        var value0Vector = Vector256.Create(value0);
+                        var value1Vector = Vector256.Create(value1);
+
+                        do {
+                            var searchVector = LoadVector256(ref searchSpace, offset);
+                            var mask = Avx2.MoveMask(Avx2.Or(Avx2.CompareEqual(value0Vector, searchVector), Avx2.CompareEqual(value1Vector, searchVector)).AsByte());
+
+                            while (0 != mask) {
+                                var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
+
+                                currentIndex[0] = (((int)offset) + m);
+                                buffer.Write(currentIndex);
+                                mask &= (mask - 1);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 16;
+                            offset += 16;
+                        } while (15 < lengthToExamine);
+                    }
+
+                    if (offset < length) {
+                        lengthToExamine = (length - offset);
+
+                        goto SequentialScan;
+                    }
+                }
+            }
+        }
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        private static unsafe void IndicesOf(ref char searchSpace, char value0, char value1, char value2, int length, ArrayPoolBufferWriter<int> buffer) {
+            var currentIndex = (stackalloc[] { 0, });
+            var lengthToExamine = ((nint)length);
+            var offset = ((nint)0);
+
+            if (Sse2.IsSupported || Avx2.IsSupported) {
+                if (15 < length) {
+                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
+                }
+            }
+
+        SequentialScan:
+            int temp;
+
+            while (3 < lengthToExamine) {
+                ref var current = ref Unsafe.Add(ref searchSpace, offset);
+
+                temp = current;
+
+                if ((value0 == temp) || (value1 == temp) || (value2 == temp)) {
+                    currentIndex[0] = ((int)offset);
+                    buffer.Write(currentIndex);
+                }
+
+                temp = Unsafe.Add(ref current, 1);
+
+                if ((value0 == temp) || (value1 == temp) || (value2 == temp)) {
+                    currentIndex[0] = (((int)offset) + 1);
+                    buffer.Write(currentIndex);
+                }
+
+                temp = Unsafe.Add(ref current, 2);
+
+                if ((value0 == temp) || (value1 == temp) || (value2 == temp)) {
+                    currentIndex[0] = (((int)offset) + 2);
+                    buffer.Write(currentIndex);
+                }
+
+                temp = Unsafe.Add(ref current, 3);
+
+                if ((value0 == temp) || (value1 == temp) || (value2 == temp)) {
+                    currentIndex[0] = (((int)offset) + 3);
+                    buffer.Write(currentIndex);
+                }
+
+                lengthToExamine -= 4;
+                offset += 4;
+            }
+
+            while (0 < lengthToExamine) {
+                temp = Unsafe.Add(ref searchSpace, offset);
+
+                if ((value0 == temp) || (value1 == temp) || (value2 == temp)) {
+                    currentIndex[0] = ((int)offset);
+                    buffer.Write(currentIndex);
+                }
+
+                --lengthToExamine;
+                ++offset;
+            }
+
+            if (offset < length) {
+                if (Avx2.IsSupported) {
+                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref searchSpace, offset))) & (Vector256<byte>.Count - 1))) {
+                        var value0Vector = Vector128.Create(value0);
+                        var value1Vector = Vector128.Create(value1);
+                        var value2Vector = Vector128.Create(value2);
+
+                        var searchVector = LoadVector128(ref searchSpace, offset);
+                        var mask = Sse2.MoveMask(Sse2.Or(Sse2.Or(Sse2.CompareEqual(value0Vector, searchVector), Sse2.CompareEqual(value1Vector, searchVector)), Sse2.CompareEqual(value2Vector, searchVector)).AsByte());
+
+                        while (0 != mask) {
+                            var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
+
+                            currentIndex[0] = (((int)offset) + m);
+                            buffer.Write(currentIndex);
+                            mask &= (mask - 1);
+                            mask &= (mask - 1);
+                        }
+
+                        offset += 8;
+                    }
+
+                    lengthToExamine = GetCharVector256SpanLength(offset, length);
+
+                    if (15 < lengthToExamine) {
+                        var value0Vector = Vector256.Create(value0);
+                        var value1Vector = Vector256.Create(value1);
+                        var value2Vector = Vector256.Create(value2);
+
+                        do {
+                            var searchVector = LoadVector256(ref searchSpace, offset);
+                            var mask = Avx2.MoveMask(Avx2.Or(Avx2.Or(Avx2.CompareEqual(value0Vector, searchVector), Avx2.CompareEqual(value1Vector, searchVector)), Avx2.CompareEqual(value2Vector, searchVector)).AsByte());
 
                             while (0 != mask) {
                                 var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
@@ -735,6 +966,40 @@ namespace ByteTerrace.Ouroboros.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IndicesOf(this Span<char> span, char value, ArrayPoolBufferWriter<int> buffer) =>
             ((ReadOnlySpan<char>)span).IndicesOf(value: value, buffer: buffer);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void IndicesOf(this ReadOnlySpan<char> span, char value0, char value1, ArrayPoolBufferWriter<int> buffer) =>
+            IndicesOf(
+                buffer: buffer,
+                length: span.Length,
+                searchSpace: ref MemoryMarshal.GetReference(span),
+                value0: value0,
+                value1: value1
+            );
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void IndicesOf(this Span<char> span, char value0, char value1, ArrayPoolBufferWriter<int> buffer) =>
+            ((ReadOnlySpan<char>)span).IndicesOf(
+                buffer: buffer,
+                value0: value0,
+                value1: value1
+            );
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void IndicesOf(this ReadOnlySpan<char> span, char value0, char value1, char value2, ArrayPoolBufferWriter<int> buffer) =>
+            IndicesOf(
+                buffer: buffer,
+                length: span.Length,
+                searchSpace: ref MemoryMarshal.GetReference(span),
+                value0: value0,
+                value1: value1,
+                value2: value2
+            );
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void IndicesOf(this Span<char> span, char value0, char value1, char value2, ArrayPoolBufferWriter<int> buffer) =>
+            ((ReadOnlySpan<char>)span).IndicesOf(
+                buffer: buffer,
+                value0: value0,
+                value1: value1,
+                value2: value2
+            );
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int OccurrencesOf(this ReadOnlySpan<byte> span, byte value) =>
             OccurrencesOf(
