@@ -10,7 +10,14 @@ namespace ByteTerrace.Ouroboros.Core
     public static class MemoryExtensions
     {
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public static IReadOnlyList<ReadOnlyMemory<char>> Split(this ReadOnlyMemory<char> value, char delimiter, char escapeSentinel, ArrayPoolBufferWriter<int> indicesBuffer, ArrayPoolBufferWriter<char> stringBuffer) {
+        public static IReadOnlyList<ReadOnlyMemory<char>> Split(
+            this ReadOnlyMemory<char> value,
+            char delimiter,
+            char escapeSentinel,
+            ArrayPoolBufferWriter<int> indicesBuffer,
+            ArrayPoolBufferWriter<char> stringBuffer,
+            int? expectedCount = default
+        ) {
             indicesBuffer.Clear();
             value.Span.IndicesOf(
                 buffer: indicesBuffer,
@@ -19,7 +26,7 @@ namespace ByteTerrace.Ouroboros.Core
             );
 
             var loopLimit = indicesBuffer.WrittenCount;
-            var results = new List<ReadOnlyMemory<char>>();
+            var results = new List<ReadOnlyMemory<char>>(capacity: (expectedCount ?? 16));
 
             if (0 < loopLimit) {
                 var isNotEscaping = true;
