@@ -95,7 +95,7 @@ namespace ByteTerrace.Ouroboros.Core
             var isEscaping = false;
             var length = input.Length;
             var span = input.Span;
-            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[32]);
+            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
             var delimiterIndices = MakeDelimiterList(ref valueListBuilder, ref MemoryMarshal.GetReference(span), length, delimiter, escapeSentinel);
             var loopLimit = delimiterIndices.Length;
             var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
