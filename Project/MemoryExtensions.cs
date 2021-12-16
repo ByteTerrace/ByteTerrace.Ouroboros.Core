@@ -8,6 +8,13 @@ namespace ByteTerrace.Ouroboros.Core
     /// </summary>
     public static class MemoryExtensions
     {
+        /// <summary>
+        /// Concatenates two contiguous regions of memory.
+        /// </summary>
+        /// <typeparam name="T">The type of inputs that will be concatenated.</typeparam>
+        /// <param name="input">The first input.</param>
+        /// <param name="other">The second input.</param>
+        /// <returns>A new contiguous region of memory that contains the combined inputs.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<T> Concat<T>(this ReadOnlyMemory<T> input, ReadOnlyMemory<T> other) {
             var result = new T[(input.Length + other.Length)].AsMemory();
@@ -17,6 +24,30 @@ namespace ByteTerrace.Ouroboros.Core
 
             return result;
         }
+        /// <summary>
+        /// Concatenates two contiguous regions of memory.
+        /// </summary>
+        /// <typeparam name="T">The type of inputs that will be concatenated.</typeparam>
+        /// <param name="input">The first input.</param>
+        /// <param name="other">The second input.</param>
+        /// <returns>A new contiguous region of memory that contains the combined inputs.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlyMemory<T> Concat<T>(this ReadOnlyMemory<T> input, ReadOnlySpan<T> other) {
+            var result = new T[(input.Length + other.Length)];
+
+            input.CopyTo(result.AsMemory());
+            other.CopyTo(result[input.Length..].AsSpan());
+
+            return result.AsMemory();
+        }
+        /// <summary>
+        /// Delimits a contiguous region of memory based on the specified delimiter and escape sentinel characters.
+        /// </summary>
+        /// <param name="input">The region of memory that will be delimited.</param>
+        /// <param name="delimiter">A character that delimits regions within this input.</param>
+        /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped region.</param>
+        /// <param name="isEscaping">A boolean that indicates whether the input/output is/has a continuation.</param>
+        /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel, ref bool isEscaping) {
             var length = input.Length;
             var span = input.Span;
@@ -38,6 +69,14 @@ namespace ByteTerrace.Ouroboros.Core
                         }
                         else {
                             stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
+                        }
+                    }
+                    else if (isEscaping) {
+                        if (stringBuilder.IsEmpty) {
+                            stringBuilder = input.Slice(endIndex, 1);
+                        }
+                        else {
+                            stringBuilder = stringBuilder.Concat(input.Slice(endIndex, 1));
                         }
                     }
 
@@ -82,6 +121,13 @@ namespace ByteTerrace.Ouroboros.Core
 
             return result.AsMemory()[..(resultIndex + 1)];
         }
+        /// <summary>
+        /// Delimits a contiguous region of memory based on the specified delimiter and escape sentinel characters.
+        /// </summary>
+        /// <param name="input">The region of memory that will be delimited.</param>
+        /// <param name="delimiter">A character that delimits regions within this input.</param>
+        /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped region.</param>
+        /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
             var isEscaping = false;
