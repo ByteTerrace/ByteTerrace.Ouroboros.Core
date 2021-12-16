@@ -19,7 +19,7 @@ namespace ByteTerrace.Ouroboros.Core
 
             if (0 < readResult) {
                 do {
-                    yield return buffer.Memory.Slice(0, readResult);
+                    yield return buffer.Memory[..readResult];
 
                     readResult = stream.Read(buffer: buffer.Span);
                 } while (0 < readResult);
@@ -41,7 +41,7 @@ namespace ByteTerrace.Ouroboros.Core
 
             if (0 < readResult) {
                 do {
-                    yield return buffer.Memory.Slice(0, readResult);
+                    yield return buffer.Memory[..readResult];
 
                     readResult = await stream
                         .ReadAsync(

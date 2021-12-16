@@ -17,13 +17,12 @@ namespace ByteTerrace.Ouroboros.Core
 
             return result;
         }
-        public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
+        public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel, ref bool isEscaping) {
             var length = input.Length;
             var span = input.Span;
             var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
             var delimiterIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(span), length, delimiter, escapeSentinel);
             var beginIndex = 0;
-            var isEscaping = false;
             var loopLimit = delimiterIndices.Length;
             var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
             var resultIndex = 0;
@@ -82,6 +81,12 @@ namespace ByteTerrace.Ouroboros.Core
             valueListBuilder.Dispose();
 
             return result.AsMemory()[..(resultIndex + 1)];
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
+            var isEscaping = false;
+
+            return input.Delimit(delimiter, escapeSentinel, ref isEscaping);
         }
     }
 }
