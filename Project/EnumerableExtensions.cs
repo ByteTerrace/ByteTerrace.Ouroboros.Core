@@ -53,12 +53,9 @@ namespace ByteTerrace.Ouroboros.Core
             this IEnumerable<ReadOnlyMemory<byte>> source,
             byte delimiter = FieldSeparator
         ) {
-            using var xIndices = new ArrayPoolBufferWriter<int>();
-
             foreach (var yChunk in source) {
-                yChunk.Span.IndicesOf(delimiter, xIndices);
-
-                var loopLimit = xIndices.WrittenCount;
+                var xIndices = yChunk.Span.IndicesOf(delimiter); // TODO: Consider stackallocing the indices.
+                var loopLimit = xIndices.Length;
                 var previousIndex = 0;
 
                 using var xChunk = MemoryOwner<ReadOnlyMemory<byte>>.Allocate(size: (loopLimit + 1));
@@ -67,7 +64,7 @@ namespace ByteTerrace.Ouroboros.Core
                     var loopIndex = 0;
 
                     do {
-                        var currentIndex = xIndices.WrittenSpan[loopIndex];
+                        var currentIndex = xIndices[loopIndex];
 
                         if (currentIndex != previousIndex) {
                             xChunk.Span[loopIndex] = yChunk[previousIndex..currentIndex];
@@ -88,8 +85,6 @@ namespace ByteTerrace.Ouroboros.Core
                 }
 
                 yield return xChunk;
-
-                xIndices.Clear();
             }
         }
         public static IEnumerable<MemoryOwner<ReadOnlyMemory<char>>> ReadDelimitedFields(
