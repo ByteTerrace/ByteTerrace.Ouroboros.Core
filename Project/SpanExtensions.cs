@@ -16,477 +16,20 @@ namespace ByteTerrace.Ouroboros.Core
     public static class SpanExtensions
     {
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        private static unsafe void IndicesOf(ref byte searchSpace, byte value, int length, ArrayPoolBufferWriter<int> buffer) {
-            var currentIndex = (stackalloc[] { 0, });
-            var lengthToExamine = ((nuint)length);
-            var offset = ((nuint)0);
-
-            if (Sse2.IsSupported || Avx2.IsSupported) {
-                if (31 < length) {
-                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
-                }
-            }
-
-        SequentialScan:
-            while (7 < lengthToExamine) {
-                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset));
-
-                if (value == current) {
-                    currentIndex[0] = ((int)offset);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(1))) {
-                    currentIndex[0] = (((int)offset) + 1);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(2))) {
-                    currentIndex[0] = (((int)offset) + 2);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(3))) {
-                    currentIndex[0] = (((int)offset) + 3);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(4))) {
-                    currentIndex[0] = (((int)offset) + 4);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(5))) {
-                    currentIndex[0] = (((int)offset) + 5);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(6))) {
-                    currentIndex[0] = (((int)offset) + 6);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(7))) {
-                    currentIndex[0] = (((int)offset) + 7);
-                    buffer.Write(currentIndex);
-                }
-
-                lengthToExamine -= 8;
-                offset += 8;
-            }
-
-            while (3 < lengthToExamine) {
-                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset));
-
-                if (value == current) {
-                    currentIndex[0] = ((int)offset);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(1))) {
-                    currentIndex[0] = (((int)offset) + 1);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(2))) {
-                    currentIndex[0] = (((int)offset) + 2);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.AddByteOffset(ref current, new IntPtr(3))) {
-                    currentIndex[0] = (((int)offset) + 3);
-                    buffer.Write(currentIndex);
-                }
-
-                lengthToExamine -= 4;
-                offset += 4;
-            }
-
-            while (0 < lengthToExamine) {
-                if (value == Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset))) {
-                    currentIndex[0] = ((int)offset);
-                    buffer.Write(currentIndex);
-                }
-
-                --lengthToExamine;
-                ++offset;
-            }
-
-            if (offset < ((nuint)(uint)length)) {
-                if (Avx2.IsSupported) {
-                    if (0 != (((nuint)(uint)Unsafe.AsPointer(ref searchSpace) + offset) & (nuint)(Vector256<byte>.Count - 1))) {
-                        var mask = Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value), LoadVector128(ref searchSpace, offset)));
-
-                        while (0 != mask) {
-                            var m = BitOperations.TrailingZeroCount(mask);
-
-                            currentIndex[0] = (((int)offset) + m);
-                            buffer.Write(currentIndex);
-                            mask &= (mask - 1);
-                        }
-
-                        offset += 16;
-                    }
-
-                    lengthToExamine = GetByteVector256SpanLength(offset, length);
-
-                    if (31 < lengthToExamine) {
-                        var searchMask = Vector256.Create(value);
-
-                        do {
-                            var mask = Avx2.MoveMask(Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, offset)));
-
-                            while (0 != mask) {
-                                var m = BitOperations.TrailingZeroCount(mask);
-                                currentIndex[0] = (((int)offset) + m);
-                                buffer.Write(currentIndex);
-                                mask &= (mask - 1);
-                            }
-
-                            lengthToExamine -= 32;
-                            offset += 32;
-                        } while (31 < lengthToExamine);
-                    }
-
-                    if (offset < ((nuint)(uint)length)) {
-                        lengthToExamine = (((nuint)(uint)length) - offset);
-
-                        goto SequentialScan;
-                    }
-                }
-            }
-        }
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        private static unsafe void IndicesOf(ref char searchSpace, char value, int length, ArrayPoolBufferWriter<int> buffer) {
-            var currentIndex = (stackalloc[] { 0, });
-            var lengthToExamine = ((nint)length);
-            var offset = ((nint)0);
-
-            if (Sse2.IsSupported || Avx2.IsSupported) {
-                if (15 < length) {
-                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
-                }
-            }
-
-        SequentialScan:
-            while (3 < lengthToExamine) {
-                ref var current = ref Unsafe.Add(ref searchSpace, offset);
-
-                if (value == current) {
-                    currentIndex[0] = ((int)offset);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.Add(ref current, 1)) {
-                    currentIndex[0] = (((int)offset) + 1);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.Add(ref current, 2)) {
-                    currentIndex[0] = (((int)offset) + 2);
-                    buffer.Write(currentIndex);
-                }
-                if (value == Unsafe.Add(ref current, 3)) {
-                    currentIndex[0] = (((int)offset) + 3);
-                    buffer.Write(currentIndex);
-                }
-
-                lengthToExamine -= 4;
-                offset += 4;
-            }
-
-            while (0 < lengthToExamine) {
-                if (value == Unsafe.Add(ref searchSpace, offset)) {
-                    currentIndex[0] = ((int)offset);
-                    buffer.Write(currentIndex);
-                }
-
-                --lengthToExamine;
-                ++offset;
-            }
-
-            if (offset < length) {
-                if (Avx2.IsSupported) {
-                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref searchSpace, offset))) & (Vector256<byte>.Count - 1))) {
-                        var mask = Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value), LoadVector128(ref searchSpace, offset)).AsByte());
-
-                        while (0 != mask) {
-                            var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
-
-                            currentIndex[0] = (((int)offset) + m);
-                            buffer.Write(currentIndex);
-                            mask &= (mask - 1);
-                            mask &= (mask - 1);
-                        }
-
-                        offset += 8;
-                    }
-
-                    lengthToExamine = GetCharVector256SpanLength(offset, length);
-
-                    if (15 < lengthToExamine) {
-                        var searchMask = Vector256.Create(value);
-
-                        do {
-                            var mask = Avx2.MoveMask(Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, offset)).AsByte());
-
-                            while (0 != mask) {
-                                var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
-
-                                currentIndex[0] = (((int)offset) + m);
-                                buffer.Write(currentIndex);
-                                mask &= (mask - 1);
-                                mask &= (mask - 1);
-                            }
-
-                            lengthToExamine -= 16;
-                            offset += 16;
-                        } while (15 < lengthToExamine);
-                    }
-
-                    if (offset < length) {
-                        lengthToExamine = (length - offset);
-
-                        goto SequentialScan;
-                    }
-                }
-            }
-        }
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        private static unsafe void IndicesOf(ref char searchSpace, char value0, char value1, int length, ArrayPoolBufferWriter<int> buffer) {
-            var currentIndex = (stackalloc[] { 0, });
-            var lengthToExamine = ((nint)length);
-            var offset = ((nint)0);
-
-            if (Sse2.IsSupported || Avx2.IsSupported) {
-                if (15 < length) {
-                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
-                }
-            }
-
-        SequentialScan:
-            int temp;
-
-            while (3 < lengthToExamine) {
-                ref var current = ref Unsafe.Add(ref searchSpace, offset);
-
-                temp = current;
-
-                if ((value0 == temp) || (value1 == temp)) {
-                    currentIndex[0] = ((int)offset);
-                    buffer.Write(currentIndex);
-                }
-
-                temp = Unsafe.Add(ref current, 1);
-
-                if ((value0 == temp) || (value1 == temp)) {
-                    currentIndex[0] = (((int)offset) + 1);
-                    buffer.Write(currentIndex);
-                }
-
-                temp = Unsafe.Add(ref current, 2);
-
-                if ((value0 == temp) || (value1 == temp)) {
-                    currentIndex[0] = (((int)offset) + 2);
-                    buffer.Write(currentIndex);
-                }
-
-                temp = Unsafe.Add(ref current, 3);
-
-                if ((value0 == temp) || (value1 == temp)) {
-                    currentIndex[0] = (((int)offset) + 3);
-                    buffer.Write(currentIndex);
-                }
-
-                lengthToExamine -= 4;
-                offset += 4;
-            }
-
-            while (0 < lengthToExamine) {
-                temp = Unsafe.Add(ref searchSpace, offset);
-
-                if ((value0 == temp) || (value1 == temp)) {
-                    currentIndex[0] = ((int)offset);
-                    buffer.Write(currentIndex);
-                }
-
-                --lengthToExamine;
-                ++offset;
-            }
-
-            if (offset < length) {
-                if (Avx2.IsSupported) {
-                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref searchSpace, offset))) & (Vector256<byte>.Count - 1))) {
-                        var value0Vector = Vector128.Create(value0);
-                        var value1Vector = Vector128.Create(value1);
-
-                        var searchVector = LoadVector128(ref searchSpace, offset);
-                        var mask = Sse2.MoveMask(Sse2.Or(Sse2.CompareEqual(value0Vector, searchVector), Sse2.CompareEqual(value1Vector, searchVector)).AsByte());
-
-                        while (0 != mask) {
-                            var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
-
-                            currentIndex[0] = (((int)offset) + m);
-                            buffer.Write(currentIndex);
-                            mask &= (mask - 1);
-                            mask &= (mask - 1);
-                        }
-
-                        offset += 8;
-                    }
-
-                    lengthToExamine = GetCharVector256SpanLength(offset, length);
-
-                    if (15 < lengthToExamine) {
-                        var value0Vector = Vector256.Create(value0);
-                        var value1Vector = Vector256.Create(value1);
-
-                        do {
-                            var searchVector = LoadVector256(ref searchSpace, offset);
-                            var mask = Avx2.MoveMask(Avx2.Or(Avx2.CompareEqual(value0Vector, searchVector), Avx2.CompareEqual(value1Vector, searchVector)).AsByte());
-
-                            while (0 != mask) {
-                                var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
-
-                                currentIndex[0] = (((int)offset) + m);
-                                buffer.Write(currentIndex);
-                                mask &= (mask - 1);
-                                mask &= (mask - 1);
-                            }
-
-                            lengthToExamine -= 16;
-                            offset += 16;
-                        } while (15 < lengthToExamine);
-                    }
-
-                    if (offset < length) {
-                        lengthToExamine = (length - offset);
-
-                        goto SequentialScan;
-                    }
-                }
-            }
-        }
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        private static unsafe void IndicesOf(ref char searchSpace, char value0, char value1, char value2, int length, ArrayPoolBufferWriter<int> buffer) {
-            var currentIndex = (stackalloc[] { 0, });
-            var lengthToExamine = ((nint)length);
-            var offset = ((nint)0);
-
-            if (Sse2.IsSupported || Avx2.IsSupported) {
-                if (15 < length) {
-                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
-                }
-            }
-
-        SequentialScan:
-            int temp;
-
-            while (3 < lengthToExamine) {
-                ref var current = ref Unsafe.Add(ref searchSpace, offset);
-
-                temp = current;
-
-                if ((value0 == temp) || (value1 == temp) || (value2 == temp)) {
-                    currentIndex[0] = ((int)offset);
-                    buffer.Write(currentIndex);
-                }
-
-                temp = Unsafe.Add(ref current, 1);
-
-                if ((value0 == temp) || (value1 == temp) || (value2 == temp)) {
-                    currentIndex[0] = (((int)offset) + 1);
-                    buffer.Write(currentIndex);
-                }
-
-                temp = Unsafe.Add(ref current, 2);
-
-                if ((value0 == temp) || (value1 == temp) || (value2 == temp)) {
-                    currentIndex[0] = (((int)offset) + 2);
-                    buffer.Write(currentIndex);
-                }
-
-                temp = Unsafe.Add(ref current, 3);
-
-                if ((value0 == temp) || (value1 == temp) || (value2 == temp)) {
-                    currentIndex[0] = (((int)offset) + 3);
-                    buffer.Write(currentIndex);
-                }
-
-                lengthToExamine -= 4;
-                offset += 4;
-            }
-
-            while (0 < lengthToExamine) {
-                temp = Unsafe.Add(ref searchSpace, offset);
-
-                if ((value0 == temp) || (value1 == temp) || (value2 == temp)) {
-                    currentIndex[0] = ((int)offset);
-                    buffer.Write(currentIndex);
-                }
-
-                --lengthToExamine;
-                ++offset;
-            }
-
-            if (offset < length) {
-                if (Avx2.IsSupported) {
-                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref searchSpace, offset))) & (Vector256<byte>.Count - 1))) {
-                        var value0Vector = Vector128.Create(value0);
-                        var value1Vector = Vector128.Create(value1);
-                        var value2Vector = Vector128.Create(value2);
-
-                        var searchVector = LoadVector128(ref searchSpace, offset);
-                        var mask = Sse2.MoveMask(Sse2.Or(Sse2.Or(Sse2.CompareEqual(value0Vector, searchVector), Sse2.CompareEqual(value1Vector, searchVector)), Sse2.CompareEqual(value2Vector, searchVector)).AsByte());
-
-                        while (0 != mask) {
-                            var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
-
-                            currentIndex[0] = (((int)offset) + m);
-                            buffer.Write(currentIndex);
-                            mask &= (mask - 1);
-                            mask &= (mask - 1);
-                        }
-
-                        offset += 8;
-                    }
-
-                    lengthToExamine = GetCharVector256SpanLength(offset, length);
-
-                    if (15 < lengthToExamine) {
-                        var value0Vector = Vector256.Create(value0);
-                        var value1Vector = Vector256.Create(value1);
-                        var value2Vector = Vector256.Create(value2);
-
-                        do {
-                            var searchVector = LoadVector256(ref searchSpace, offset);
-                            var mask = Avx2.MoveMask(Avx2.Or(Avx2.Or(Avx2.CompareEqual(value0Vector, searchVector), Avx2.CompareEqual(value1Vector, searchVector)), Avx2.CompareEqual(value2Vector, searchVector)).AsByte());
-
-                            while (0 != mask) {
-                                var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) / 2));
-
-                                currentIndex[0] = (((int)offset) + m);
-                                buffer.Write(currentIndex);
-                                mask &= (mask - 1);
-                                mask &= (mask - 1);
-                            }
-
-                            lengthToExamine -= 16;
-                            offset += 16;
-                        } while (15 < lengthToExamine);
-                    }
-
-                    if (offset < length) {
-                        lengthToExamine = (length - offset);
-
-                        goto SequentialScan;
-                    }
-                }
-            }
-        }
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        private static unsafe int OccurrencesOf(ref byte searchSpace, byte value, int length) {
+        private static unsafe int OccurrencesOf(ref byte input, int length, byte value) {
             var lengthToExamine = ((nuint)length);
             var offset = ((nuint)0);
             var result = 0L;
 
             if (Sse2.IsSupported || Avx2.IsSupported) {
                 if (31 < length) {
-                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
+                    lengthToExamine = UnalignedCountVector128(ref input);
                 }
             }
 
         SequentialScan:
             while (7 < lengthToExamine) {
-                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset));
+                ref byte current = ref Unsafe.AddByteOffset(ref input, new IntPtr((int)offset));
 
                 if (value == current) {
                     ++result;
@@ -518,7 +61,7 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             while (3 < lengthToExamine) {
-                ref byte current = ref Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset));
+                ref byte current = ref Unsafe.AddByteOffset(ref input, new IntPtr((int)offset));
 
                 if (value == current) {
                     ++result;
@@ -538,7 +81,7 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             while (0 < lengthToExamine) {
-                if (value == Unsafe.AddByteOffset(ref searchSpace, new IntPtr((int)offset))) {
+                if (value == Unsafe.AddByteOffset(ref input, new IntPtr((int)offset))) {
                     ++result;
                 }
 
@@ -548,8 +91,8 @@ namespace ByteTerrace.Ouroboros.Core
 
             if (offset < ((nuint)(uint)length)) {
                 if (Avx2.IsSupported) {
-                    if (0 != (((nuint)(uint)Unsafe.AsPointer(ref searchSpace) + offset) & (nuint)(Vector256<byte>.Count - 1))) {
-                        var sum = Sse2.SumAbsoluteDifferences(Sse2.Subtract(Vector128<byte>.Zero, Sse2.CompareEqual(Vector128.Create(value), LoadVector128(ref searchSpace, offset))).AsByte(), Vector128<byte>.Zero).AsInt64();
+                    if (0 != (((nuint)(uint)Unsafe.AsPointer(ref input) + offset) & (nuint)(Vector256<byte>.Count - 1))) {
+                        var sum = Sse2.SumAbsoluteDifferences(Sse2.Subtract(Vector128<byte>.Zero, Sse2.CompareEqual(Vector128.Create(value), LoadVector128(ref input, offset))).AsByte(), Vector128<byte>.Zero).AsInt64();
 
                         offset += 16;
                         result += (sum.GetElement(0) + sum.GetElement(1));
@@ -571,10 +114,10 @@ namespace ByteTerrace.Ouroboros.Core
                             var loopLimit = Math.Min(255, (lengthToExamine / 128));
 
                             do {
-                                accumulator0 = Avx2.Subtract(accumulator0, Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, offset)));
-                                accumulator1 = Avx2.Subtract(accumulator1, Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, (offset + 32))));
-                                accumulator2 = Avx2.Subtract(accumulator2, Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, (offset + 64))));
-                                accumulator3 = Avx2.Subtract(accumulator3, Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, (offset + 96))));
+                                accumulator0 = Avx2.Subtract(accumulator0, Avx2.CompareEqual(searchMask, LoadVector256(ref input, offset)));
+                                accumulator1 = Avx2.Subtract(accumulator1, Avx2.CompareEqual(searchMask, LoadVector256(ref input, (offset + 32))));
+                                accumulator2 = Avx2.Subtract(accumulator2, Avx2.CompareEqual(searchMask, LoadVector256(ref input, (offset + 64))));
+                                accumulator3 = Avx2.Subtract(accumulator3, Avx2.CompareEqual(searchMask, LoadVector256(ref input, (offset + 96))));
                                 loopIndex++;
                                 offset += 128;
                             } while (loopIndex < loopLimit);
@@ -597,7 +140,7 @@ namespace ByteTerrace.Ouroboros.Core
                         var sum = Vector256<long>.Zero;
 
                         do {
-                            sum = Avx2.Add(sum, Avx2.SumAbsoluteDifferences(Avx2.Subtract(Vector256<byte>.Zero, Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, offset))).AsByte(), Vector256<byte>.Zero).AsInt64());
+                            sum = Avx2.Add(sum, Avx2.SumAbsoluteDifferences(Avx2.Subtract(Vector256<byte>.Zero, Avx2.CompareEqual(searchMask, LoadVector256(ref input, offset))).AsByte(), Vector256<byte>.Zero).AsInt64());
                             lengthToExamine -= 32;
                             offset += 32;
                         } while (31 < lengthToExamine);
@@ -632,10 +175,10 @@ namespace ByteTerrace.Ouroboros.Core
                             var loopLimit = Math.Min(255, (lengthToExamine / 64));
 
                             do {
-                                accumulator0 = Sse2.Subtract(accumulator0, Sse2.CompareEqual(searchMask, LoadVector128(ref searchSpace, offset)));
-                                accumulator1 = Sse2.Subtract(accumulator1, Sse2.CompareEqual(searchMask, LoadVector128(ref searchSpace, (offset + 16))));
-                                accumulator2 = Sse2.Subtract(accumulator2, Sse2.CompareEqual(searchMask, LoadVector128(ref searchSpace, (offset + 32))));
-                                accumulator3 = Sse2.Subtract(accumulator3, Sse2.CompareEqual(searchMask, LoadVector128(ref searchSpace, (offset + 48))));
+                                accumulator0 = Sse2.Subtract(accumulator0, Sse2.CompareEqual(searchMask, LoadVector128(ref input, offset)));
+                                accumulator1 = Sse2.Subtract(accumulator1, Sse2.CompareEqual(searchMask, LoadVector128(ref input, (offset + 16))));
+                                accumulator2 = Sse2.Subtract(accumulator2, Sse2.CompareEqual(searchMask, LoadVector128(ref input, (offset + 32))));
+                                accumulator3 = Sse2.Subtract(accumulator3, Sse2.CompareEqual(searchMask, LoadVector128(ref input, (offset + 48))));
                                 loopIndex++;
                                 offset += 64;
                             } while (loopIndex < loopLimit);
@@ -654,7 +197,7 @@ namespace ByteTerrace.Ouroboros.Core
                         var sum = Vector128<long>.Zero;
 
                         do {
-                            sum = Sse2.Add(sum, Sse2.SumAbsoluteDifferences(Sse2.Subtract(Vector128<byte>.Zero, Sse2.CompareEqual(searchMask, LoadVector128(ref searchSpace, offset))).AsByte(), Vector128<byte>.Zero).AsInt64());
+                            sum = Sse2.Add(sum, Sse2.SumAbsoluteDifferences(Sse2.Subtract(Vector128<byte>.Zero, Sse2.CompareEqual(searchMask, LoadVector128(ref input, offset))).AsByte(), Vector128<byte>.Zero).AsInt64());
                             lengthToExamine -= 16;
                             offset += 16;
                         } while (15 < lengthToExamine);
@@ -673,21 +216,21 @@ namespace ByteTerrace.Ouroboros.Core
             return ((int)result);
         }
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        private static unsafe int OccurrencesOf(ref char searchSpace, char value, int length) {
+        private static unsafe int OccurrencesOf(ref char input, int length, char value) {
             var lengthToExamine = ((nint)length);
             var offset = ((nint)0);
             var result = 0L;
 
-            if (0 != ((int)Unsafe.AsPointer(ref searchSpace) & 1)) { }
+            if (0 != ((int)Unsafe.AsPointer(ref input) & 1)) { }
             else if (Sse2.IsSupported || Avx2.IsSupported) {
                 if (15 < length) {
-                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
+                    lengthToExamine = UnalignedCountVector128(ref input);
                 }
             }
 
         SequentialScan:
             while (3 < lengthToExamine) {
-                ref char current = ref Unsafe.Add(ref searchSpace, offset);
+                ref char current = ref Unsafe.Add(ref input, offset);
 
                 if (value == current) {
                     ++result;
@@ -707,7 +250,7 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             while (0 < lengthToExamine) {
-                if (value == Unsafe.Add(ref searchSpace, offset)) {
+                if (value == Unsafe.Add(ref input, offset)) {
                     ++result;
                 }
 
@@ -717,8 +260,8 @@ namespace ByteTerrace.Ouroboros.Core
 
             if (offset < length) {
                 if (Avx2.IsSupported) {
-                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref searchSpace, offset))) & (Vector256<byte>.Count - 1))) {
-                        var sum = Sse2.SumAbsoluteDifferences(Sse2.Subtract(Vector128<ushort>.Zero, Sse2.CompareEqual(Vector128.Create(value), LoadVector128(ref searchSpace, offset))).AsByte(), Vector128<byte>.Zero).AsInt64();
+                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, offset))) & (Vector256<byte>.Count - 1))) {
+                        var sum = Sse2.SumAbsoluteDifferences(Sse2.Subtract(Vector128<ushort>.Zero, Sse2.CompareEqual(Vector128.Create(value), LoadVector128(ref input, offset))).AsByte(), Vector128<byte>.Zero).AsInt64();
 
                         offset += 8;
                         result += (sum.GetElement(0) + sum.GetElement(1));
@@ -740,10 +283,10 @@ namespace ByteTerrace.Ouroboros.Core
                             var loopLimit = Math.Min(255, (lengthToExamine / 64));
 
                             do {
-                                accumulator0 = Avx2.Subtract(accumulator0, Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, offset)));
-                                accumulator1 = Avx2.Subtract(accumulator1, Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, (offset + 16))));
-                                accumulator2 = Avx2.Subtract(accumulator2, Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, (offset + 32))));
-                                accumulator3 = Avx2.Subtract(accumulator3, Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, (offset + 48))));
+                                accumulator0 = Avx2.Subtract(accumulator0, Avx2.CompareEqual(searchMask, LoadVector256(ref input, offset)));
+                                accumulator1 = Avx2.Subtract(accumulator1, Avx2.CompareEqual(searchMask, LoadVector256(ref input, (offset + 16))));
+                                accumulator2 = Avx2.Subtract(accumulator2, Avx2.CompareEqual(searchMask, LoadVector256(ref input, (offset + 32))));
+                                accumulator3 = Avx2.Subtract(accumulator3, Avx2.CompareEqual(searchMask, LoadVector256(ref input, (offset + 48))));
                                 loopIndex++;
                                 offset += 64;
                             } while (loopIndex < loopLimit);
@@ -766,7 +309,7 @@ namespace ByteTerrace.Ouroboros.Core
                         var sum = Vector256<long>.Zero;
 
                         do {
-                            sum = Avx2.Add(sum, Avx2.SumAbsoluteDifferences(Avx2.Subtract(Vector256<ushort>.Zero, Avx2.CompareEqual(searchMask, LoadVector256(ref searchSpace, offset))).AsByte(), Vector256<byte>.Zero).AsInt64());
+                            sum = Avx2.Add(sum, Avx2.SumAbsoluteDifferences(Avx2.Subtract(Vector256<ushort>.Zero, Avx2.CompareEqual(searchMask, LoadVector256(ref input, offset))).AsByte(), Vector256<byte>.Zero).AsInt64());
                             lengthToExamine -= 16;
                             offset += 16;
                         } while (15 < lengthToExamine);
@@ -801,10 +344,10 @@ namespace ByteTerrace.Ouroboros.Core
                             var loopLimit = Math.Min(255, (lengthToExamine / 32));
 
                             do {
-                                accumulator0 = Sse2.Subtract(accumulator0, Sse2.CompareEqual(searchMask, LoadVector128(ref searchSpace, offset)));
-                                accumulator1 = Sse2.Subtract(accumulator1, Sse2.CompareEqual(searchMask, LoadVector128(ref searchSpace, (offset + 8))));
-                                accumulator2 = Sse2.Subtract(accumulator2, Sse2.CompareEqual(searchMask, LoadVector128(ref searchSpace, (offset + 16))));
-                                accumulator3 = Sse2.Subtract(accumulator3, Sse2.CompareEqual(searchMask, LoadVector128(ref searchSpace, (offset + 24))));
+                                accumulator0 = Sse2.Subtract(accumulator0, Sse2.CompareEqual(searchMask, LoadVector128(ref input, offset)));
+                                accumulator1 = Sse2.Subtract(accumulator1, Sse2.CompareEqual(searchMask, LoadVector128(ref input, (offset + 8))));
+                                accumulator2 = Sse2.Subtract(accumulator2, Sse2.CompareEqual(searchMask, LoadVector128(ref input, (offset + 16))));
+                                accumulator3 = Sse2.Subtract(accumulator3, Sse2.CompareEqual(searchMask, LoadVector128(ref input, (offset + 24))));
                                 loopIndex++;
                                 offset += 32;
                             } while (loopIndex < loopLimit);
@@ -823,7 +366,7 @@ namespace ByteTerrace.Ouroboros.Core
                         var sum = Vector128<long>.Zero;
 
                         do {
-                            sum = Sse2.Add(sum, Sse2.SumAbsoluteDifferences(Sse2.Subtract(Vector128<ushort>.Zero, Sse2.CompareEqual(searchMask, LoadVector128(ref searchSpace, offset))).AsByte(), Vector128<byte>.Zero).AsInt64());
+                            sum = Sse2.Add(sum, Sse2.SumAbsoluteDifferences(Sse2.Subtract(Vector128<ushort>.Zero, Sse2.CompareEqual(searchMask, LoadVector128(ref input, offset))).AsByte(), Vector128<byte>.Zero).AsInt64());
                             lengthToExamine -= 8;
                             offset += 8;
                         } while (7 < lengthToExamine);
@@ -840,6 +383,271 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             return ((int)result);
+        }
+
+        internal static ReadOnlySpan<int> BuildValueList(this ref ValueListBuilder<int> valueListBuilder, ref byte input, int length, byte value) {
+            var index = 0;
+
+            if (Sse2.IsSupported || Avx2.IsSupported) {
+                index = BuildValueListVectorized(ref valueListBuilder, ref input, length, value);
+            }
+
+            for (; (index < length); ++index) {
+                var c = Unsafe.Add(ref input, index);
+
+                if (c == value) {
+                    valueListBuilder.Append(index);
+                }
+            }
+
+            return valueListBuilder.AsSpan();
+        }
+        internal static ReadOnlySpan<int> BuildValueList(this ref ValueListBuilder<int> valueListBuilder, ref char input, int length, char value) {
+            var index = 0;
+
+            if (Sse2.IsSupported || Avx2.IsSupported) {
+                index = BuildValueListVectorized(ref valueListBuilder, ref input, length, value);
+            }
+
+            for (; (index < length); ++index) {
+                var c = Unsafe.Add(ref input, index);
+
+                if (c == value) {
+                    valueListBuilder.Append(index);
+                }
+            }
+
+            return valueListBuilder.AsSpan();
+        }
+        internal static ReadOnlySpan<int> BuildValueList(this ref ValueListBuilder<int> valueListBuilder, ref char input, int length, char value0, char value1) {
+            var index = 0;
+
+            if (Sse2.IsSupported || Avx2.IsSupported) {
+                index = BuildValueListVectorized(ref valueListBuilder, ref input, length, value0, value1);
+            }
+
+            for (; (index < length); ++index) {
+                var c = Unsafe.Add(ref input, index);
+
+                if ((c == value0) || (c == value1)) {
+                    valueListBuilder.Append(index);
+                }
+            }
+
+            return valueListBuilder.AsSpan();
+        }
+        internal static unsafe int BuildValueListVectorized(this ref ValueListBuilder<int> valueListBuilder, ref byte input, int length, byte value) {
+            var index = ((nuint)0);
+
+            if ((15 < length) && (((int)index) < length)) {
+                nuint lengthToExamine;
+
+                if (Avx2.IsSupported) {
+                    if (0 != (((uint)Unsafe.AsPointer(ref input) + index) & ((nuint)(Vector256<byte>.Count - 1)))) {
+                        var mask = Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value), LoadVector128(ref input, index)));
+
+                        while (0 != mask) {
+                            var m = BitOperations.TrailingZeroCount(mask);
+
+                            valueListBuilder.Append(((int)index) + m);
+                            mask &= (mask - 1);
+                        }
+
+                        index += 16;
+                    }
+
+                    lengthToExamine = GetByteVector256SpanLength(index, length);
+
+                    if (31 < lengthToExamine) {
+                        var searchMask = Vector256.Create(input);
+
+                        do {
+                            var mask = Avx2.MoveMask(Avx2.CompareEqual(searchMask, LoadVector256(ref input, index)));
+
+                            while (0 != mask) {
+                                var m = BitOperations.TrailingZeroCount(mask);
+
+                                valueListBuilder.Append(((int)index) + m);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 32;
+                            index += 32;
+                        } while (31 < lengthToExamine);
+                    }
+                }
+                else if (Sse2.IsSupported) {
+                    lengthToExamine = GetByteVector128SpanLength(index, length);
+
+                    if (15 < lengthToExamine) {
+                        var searchMask = Vector128.Create(input);
+
+                        do {
+                            var mask = Sse2.MoveMask(Sse2.CompareEqual(searchMask, LoadVector128(ref input, index)));
+
+                            while (0 != mask) {
+                                var m = BitOperations.TrailingZeroCount(mask);
+
+                                valueListBuilder.Append(((int)index) + m);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 16;
+                            index += 16;
+                        } while (15 < lengthToExamine);
+                    }
+                }
+            }
+
+            return ((int)index);
+        }
+        internal static unsafe int BuildValueListVectorized(this ref ValueListBuilder<int> valueListBuilder, ref char input, int length, char value) {
+            var index = ((nint)0);
+
+            if ((7 < length) && (index < length)) {
+                nint lengthToExamine;
+
+                if (Avx2.IsSupported) {
+                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
+                        var valueVector = Vector128.Create(value);
+                        var searchVector = LoadVector128(ref input, index);
+                        var mask = Sse2.MoveMask(Sse2.CompareEqual(valueVector, searchVector).AsByte());
+
+                        while (0 != mask) {
+                            var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
+
+                            valueListBuilder.Append(((int)index) + m);
+                            mask &= (mask - 1);
+                            mask &= (mask - 1);
+                        }
+
+                        index += 8;
+                    }
+
+                    lengthToExamine = GetCharVector256SpanLength(index, length);
+
+                    if (15 < lengthToExamine) {
+                        var valueVector = Vector256.Create(value);
+
+                        do {
+                            var searchVector = LoadVector256(ref input, index);
+                            var mask = Avx2.MoveMask(Avx2.CompareEqual(valueVector, searchVector).AsByte());
+
+                            while (0 != mask) {
+                                var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
+
+                                valueListBuilder.Append(((int)index) + m);
+                                mask &= (mask - 1);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 16;
+                            index += 16;
+                        } while (15 < lengthToExamine);
+                    }
+                }
+                else if (Sse2.IsSupported) {
+                    lengthToExamine = GetCharVector128SpanLength(index, length);
+
+                    if (7 < lengthToExamine) {
+                        var valueVector = Vector128.Create(value);
+
+                        do {
+                            var searchVector = LoadVector128(ref input, index);
+                            var mask = Sse2.MoveMask(Sse2.CompareEqual(valueVector, searchVector).AsByte());
+
+                            while (0 != mask) {
+                                var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
+
+                                valueListBuilder.Append(((int)index) + m);
+                                mask &= (mask - 1);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 8;
+                            index += 8;
+                        } while (7 < lengthToExamine);
+                    }
+                }
+            }
+
+            return ((int)index);
+        }
+        internal static unsafe int BuildValueListVectorized(this ref ValueListBuilder<int> valueListBuilder, ref char input, int length, char value0, char value1) {
+            var index = ((nint)0);
+
+            if ((7 < length) && (index < length)) {
+                nint lengthToExamine;
+
+                if (Avx2.IsSupported) {
+                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
+                        var value0Vector = Vector128.Create(value0);
+                        var value1Vector = Vector128.Create(value1);
+
+                        var searchVector = LoadVector128(ref input, index);
+                        var mask = Sse2.MoveMask(Sse2.Or(Sse2.CompareEqual(value0Vector, searchVector), Sse2.CompareEqual(value1Vector, searchVector)).AsByte());
+
+                        while (0 != mask) {
+                            var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
+
+                            valueListBuilder.Append(((int)index) + m);
+                            mask &= (mask - 1);
+                            mask &= (mask - 1);
+                        }
+
+                        index += 8;
+                    }
+
+                    lengthToExamine = GetCharVector256SpanLength(index, length);
+
+                    if (15 < lengthToExamine) {
+                        var value0Vector = Vector256.Create(value0);
+                        var value1Vector = Vector256.Create(value1);
+
+                        do {
+                            var searchVector = LoadVector256(ref input, index);
+                            var mask = Avx2.MoveMask(Avx2.Or(Avx2.CompareEqual(value0Vector, searchVector), Avx2.CompareEqual(value1Vector, searchVector)).AsByte());
+
+                            while (0 != mask) {
+                                var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
+
+                                valueListBuilder.Append(((int)index) + m);
+                                mask &= (mask - 1);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 16;
+                            index += 16;
+                        } while (15 < lengthToExamine);
+                    }
+                }
+                else if (Sse2.IsSupported) {
+                    lengthToExamine = GetCharVector128SpanLength(index, length);
+
+                    if (7 < lengthToExamine) {
+                        var value0Vector = Vector128.Create(value0);
+                        var value1Vector = Vector128.Create(value1);
+
+                        do {
+                            var searchVector = LoadVector128(ref input, index);
+                            var mask = Sse2.MoveMask(Sse2.Or(Sse2.CompareEqual(value0Vector, searchVector), Sse2.CompareEqual(value1Vector, searchVector)).AsByte());
+
+                            while (0 != mask) {
+                                var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
+
+                                valueListBuilder.Append(((int)index) + m);
+                                mask &= (mask - 1);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 8;
+                            index += 8;
+                        } while (7 < lengthToExamine);
+                    }
+                }
+            }
+
+            return ((int)index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -911,66 +719,56 @@ namespace ByteTerrace.Ouroboros.Core
                 value: value
             );
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IndicesOf(this ReadOnlySpan<byte> span, byte value, ArrayPoolBufferWriter<int> buffer) =>
-            IndicesOf(
-                buffer: buffer,
-                length: span.Length,
-                searchSpace: ref MemoryMarshal.GetReference(span),
-                value: value
-            );
+        public static int[] IndicesOf(this ReadOnlySpan<byte> span, byte value) {
+            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+
+            return BuildValueList(
+                    input: ref MemoryMarshal.GetReference(span),
+                    length: span.Length,
+                    value: value,
+                    valueListBuilder: ref valueListBuilder
+                )
+                .ToArray();
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IndicesOf(this Span<byte> span, byte value, ArrayPoolBufferWriter<int> buffer) =>
-            ((ReadOnlySpan<byte>)span).IndicesOf(value: value, buffer: buffer);
+        public static int[] IndicesOf(this Span<byte> span, byte value) =>
+            ((ReadOnlySpan<byte>)span).IndicesOf(value: value);
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IndicesOf(this ReadOnlySpan<char> span, char value, ArrayPoolBufferWriter<int> buffer) =>
-            IndicesOf(
-                buffer: buffer,
-                length: span.Length,
-                searchSpace: ref MemoryMarshal.GetReference(span),
-                value: value
-            );
+        public static int[] IndicesOf(this ReadOnlySpan<char> span, char value) {
+            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+
+            return BuildValueList(
+                    input: ref MemoryMarshal.GetReference(span),
+                    length: span.Length,
+                    value: value,
+                    valueListBuilder: ref valueListBuilder
+                )
+                .ToArray();
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IndicesOf(this Span<char> span, char value, ArrayPoolBufferWriter<int> buffer) =>
-            ((ReadOnlySpan<char>)span).IndicesOf(value: value, buffer: buffer);
+        public static int[] IndicesOf(this Span<char> span, char value) =>
+            ((ReadOnlySpan<char>)span).IndicesOf(value);
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IndicesOf(this ReadOnlySpan<char> span, char value0, char value1, ArrayPoolBufferWriter<int> buffer) =>
-            IndicesOf(
-                buffer: buffer,
-                length: span.Length,
-                searchSpace: ref MemoryMarshal.GetReference(span),
-                value0: value0,
-                value1: value1
-            );
+        public static int[] IndicesOf(this ReadOnlySpan<char> span, char value0, char value1) {
+            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+
+            return BuildValueList(
+                    input: ref MemoryMarshal.GetReference(span),
+                    length: span.Length,
+                    value0: value0,
+                    value1: value1,
+                    valueListBuilder: ref valueListBuilder
+                )
+                .ToArray();
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IndicesOf(this Span<char> span, char value0, char value1, ArrayPoolBufferWriter<int> buffer) =>
-            ((ReadOnlySpan<char>)span).IndicesOf(
-                buffer: buffer,
-                value0: value0,
-                value1: value1
-            );
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IndicesOf(this ReadOnlySpan<char> span, char value0, char value1, char value2, ArrayPoolBufferWriter<int> buffer) =>
-            IndicesOf(
-                buffer: buffer,
-                length: span.Length,
-                searchSpace: ref MemoryMarshal.GetReference(span),
-                value0: value0,
-                value1: value1,
-                value2: value2
-            );
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IndicesOf(this Span<char> span, char value0, char value1, char value2, ArrayPoolBufferWriter<int> buffer) =>
-            ((ReadOnlySpan<char>)span).IndicesOf(
-                buffer: buffer,
-                value0: value0,
-                value1: value1,
-                value2: value2
-            );
+        public static int[] IndicesOf(this Span<char> span, char value0, char value1) =>
+            ((ReadOnlySpan<char>)span).IndicesOf(value0, value1);
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int OccurrencesOf(this ReadOnlySpan<byte> span, byte value) =>
             OccurrencesOf(
+                input: ref MemoryMarshal.GetReference(span),
                 length: span.Length,
-                searchSpace: ref MemoryMarshal.GetReference(span),
                 value: value
             );
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -979,8 +777,8 @@ namespace ByteTerrace.Ouroboros.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int OccurrencesOf(this ReadOnlySpan<char> span, char value) =>
             OccurrencesOf(
+                input: ref MemoryMarshal.GetReference(span),
                 length: span.Length,
-                searchSpace: ref MemoryMarshal.GetReference(span),
                 value: value
             );
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
