@@ -393,9 +393,26 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             for (; (index < length); ++index) {
-                var c = Unsafe.AddByteOffset(ref input, ((nuint)index));
+                var b = Unsafe.AddByteOffset(ref input, ((nuint)index));
 
-                if (c == value) {
+                if (b == value) {
+                    valueListBuilder.Append(index);
+                }
+            }
+
+            return valueListBuilder.AsSpan();
+        }
+        internal static ReadOnlySpan<int> BuildValueList(this ref ValueListBuilder<int> valueListBuilder, ref byte input, int length, byte value0, byte value1) {
+            var index = 0;
+
+            if (Sse2.IsSupported || Avx2.IsSupported) {
+                index = BuildValueListVectorized(ref valueListBuilder, ref input, length, value0, value1);
+            }
+
+            for (; (index < length); ++index) {
+                var b = Unsafe.AddByteOffset(ref input, ((nuint)index));
+
+                if ((b == value0) || (b == value1)) {
                     valueListBuilder.Append(index);
                 }
             }
@@ -484,6 +501,78 @@ namespace ByteTerrace.Ouroboros.Core
 
                         do {
                             var mask = Sse2.MoveMask(Sse2.CompareEqual(valueVector, LoadVector128(ref input, index)));
+
+                            while (0 != mask) {
+                                var m = BitOperations.TrailingZeroCount(mask);
+
+                                valueListBuilder.Append(((int)index) + m);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 16;
+                            index += 16;
+                        } while (15 < lengthToExamine);
+                    }
+                }
+            }
+
+            return ((int)index);
+        }
+        internal static unsafe int BuildValueListVectorized(this ref ValueListBuilder<int> valueListBuilder, ref byte input, int length, byte value0, byte value1) {
+            var index = ((nuint)0);
+
+            if ((15 < length) && (((int)index) < length)) {
+                nuint lengthToExamine;
+
+                if (Avx2.IsSupported) {
+                    if (0 != (((uint)Unsafe.AsPointer(ref input) + index) & ((nuint)(Vector256<byte>.Count - 1)))) {
+                        var value0Vector = Vector128.Create(value0);
+                        var value1Vector = Vector128.Create(value1);
+                        var searchVector = LoadVector128(ref input, index);
+                        var mask = Sse2.MoveMask(Sse2.Or(Sse2.CompareEqual(value0Vector, searchVector), Sse2.CompareEqual(value1Vector, searchVector)).AsByte());
+
+                        while (0 != mask) {
+                            var m = BitOperations.TrailingZeroCount(mask);
+
+                            valueListBuilder.Append(((int)index) + m);
+                            mask &= (mask - 1);
+                        }
+
+                        index += 16;
+                    }
+
+                    lengthToExamine = GetByteVector256SpanLength(index, length);
+
+                    if (31 < lengthToExamine) {
+                        var value0Vector = Vector256.Create(value0);
+                        var value1Vector = Vector256.Create(value1);
+
+                        do {
+                            var searchVector = LoadVector256(ref input, index);
+                            var mask = Avx2.MoveMask(Avx2.Or(Avx2.CompareEqual(value0Vector, searchVector), Avx2.CompareEqual(value1Vector, searchVector)).AsByte());
+
+                            while (0 != mask) {
+                                var m = BitOperations.TrailingZeroCount(mask);
+
+                                valueListBuilder.Append(((int)index) + m);
+                                mask &= (mask - 1);
+                            }
+
+                            lengthToExamine -= 32;
+                            index += 32;
+                        } while (31 < lengthToExamine);
+                    }
+                }
+                else if (Sse2.IsSupported) {
+                    lengthToExamine = GetByteVector128SpanLength(index, length);
+
+                    if (15 < lengthToExamine) {
+                        var value0Vector = Vector128.Create(value0);
+                        var value1Vector = Vector128.Create(value1);
+
+                        do {
+                            var searchVector = LoadVector128(ref input, index);
+                            var mask = Sse2.MoveMask(Sse2.Or(Sse2.CompareEqual(value0Vector, searchVector), Sse2.CompareEqual(value1Vector, searchVector)).AsByte());
 
                             while (0 != mask) {
                                 var m = BitOperations.TrailingZeroCount(mask);
