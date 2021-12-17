@@ -36,7 +36,7 @@ namespace ByteTerrace.Ouroboros.Core
             var result = new T[(input.Length + other.Length)];
 
             input.CopyTo(result.AsMemory());
-            other.CopyTo(result[input.Length..].AsSpan());
+            other.CopyTo(result.AsSpan()[input.Length..]);
 
             return result.AsMemory();
         }
