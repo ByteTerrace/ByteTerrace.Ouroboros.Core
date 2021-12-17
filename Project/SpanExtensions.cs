@@ -393,7 +393,7 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             for (; (index < length); ++index) {
-                var c = Unsafe.Add(ref input, index);
+                var c = Unsafe.AddByteOffset(ref input, ((nuint)index));
 
                 if (c == value) {
                     valueListBuilder.Append(index);
@@ -459,10 +459,10 @@ namespace ByteTerrace.Ouroboros.Core
                     lengthToExamine = GetByteVector256SpanLength(index, length);
 
                     if (31 < lengthToExamine) {
-                        var searchMask = Vector256.Create(input);
+                        var valueVector = Vector256.Create(value);
 
                         do {
-                            var mask = Avx2.MoveMask(Avx2.CompareEqual(searchMask, LoadVector256(ref input, index)));
+                            var mask = Avx2.MoveMask(Avx2.CompareEqual(valueVector, LoadVector256(ref input, index)));
 
                             while (0 != mask) {
                                 var m = BitOperations.TrailingZeroCount(mask);
@@ -480,10 +480,10 @@ namespace ByteTerrace.Ouroboros.Core
                     lengthToExamine = GetByteVector128SpanLength(index, length);
 
                     if (15 < lengthToExamine) {
-                        var searchMask = Vector128.Create(input);
+                        var valueVector = Vector128.Create(value);
 
                         do {
-                            var mask = Sse2.MoveMask(Sse2.CompareEqual(searchMask, LoadVector128(ref input, index)));
+                            var mask = Sse2.MoveMask(Sse2.CompareEqual(valueVector, LoadVector128(ref input, index)));
 
                             while (0 != mask) {
                                 var m = BitOperations.TrailingZeroCount(mask);
@@ -530,8 +530,7 @@ namespace ByteTerrace.Ouroboros.Core
                         var valueVector = Vector256.Create(value);
 
                         do {
-                            var searchVector = LoadVector256(ref input, index);
-                            var mask = Avx2.MoveMask(Avx2.CompareEqual(valueVector, searchVector).AsByte());
+                            var mask = Avx2.MoveMask(Avx2.CompareEqual(valueVector, LoadVector256(ref input, index)).AsByte());
 
                             while (0 != mask) {
                                 var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
@@ -553,8 +552,7 @@ namespace ByteTerrace.Ouroboros.Core
                         var valueVector = Vector128.Create(value);
 
                         do {
-                            var searchVector = LoadVector128(ref input, index);
-                            var mask = Sse2.MoveMask(Sse2.CompareEqual(valueVector, searchVector).AsByte());
+                            var mask = Sse2.MoveMask(Sse2.CompareEqual(valueVector, LoadVector128(ref input, index)).AsByte());
 
                             while (0 != mask) {
                                 var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
@@ -583,7 +581,6 @@ namespace ByteTerrace.Ouroboros.Core
                     if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
                         var value0Vector = Vector128.Create(value0);
                         var value1Vector = Vector128.Create(value1);
-
                         var searchVector = LoadVector128(ref input, index);
                         var mask = Sse2.MoveMask(Sse2.Or(Sse2.CompareEqual(value0Vector, searchVector), Sse2.CompareEqual(value1Vector, searchVector)).AsByte());
 

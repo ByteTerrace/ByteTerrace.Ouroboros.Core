@@ -103,7 +103,7 @@ namespace ByteTerrace.Ouroboros.Core
                 }
             }
 
-            var finalSegment = ((beginIndex < length) && (0 <= loopLimit)) ? input[beginIndex..] : ReadOnlyMemory<char>.Empty;
+            var finalSegment = (((beginIndex < length) && (0 <= loopLimit)) ? input[beginIndex..] : ReadOnlyMemory<char>.Empty);
 
             if (stringBuilder.IsEmpty && !finalSegment.IsEmpty) {
                 result[resultIndex] = finalSegment;
@@ -133,6 +133,70 @@ namespace ByteTerrace.Ouroboros.Core
             var isEscaping = false;
 
             return input.Delimit(delimiter, escapeSentinel, ref isEscaping);
+        }
+        /// <summary>
+        /// Delimits a contiguous region of memory based on the specified delimiter character.
+        /// </summary>
+        /// <param name="input">The region of memory that will be delimited.</param>
+        /// <param name="delimiter">A character that delimits regions within this input.</param>
+        /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character.</returns>
+        public static ReadOnlyMemory<ReadOnlyMemory<byte>> Delimit(this ReadOnlyMemory<byte> input, byte delimiter) {
+            var length = input.Length;
+            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+            var delimiterIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(input.Span), length, delimiter);
+            var beginIndex = 0;
+            var loopLimit = delimiterIndices.Length;
+            var result = new ReadOnlyMemory<byte>[(loopLimit + 1)];
+            var resultIndex = 0;
+
+            for (var loopIndex = 0; ((loopIndex < loopLimit) && (beginIndex < length)); ++loopIndex) {
+                var endIndex = delimiterIndices[loopIndex];
+
+                result[resultIndex++] = input[beginIndex..endIndex];
+                beginIndex = (endIndex + 1);
+            }
+
+            var finalSegment = (((beginIndex < length) && (0 <= loopLimit)) ? input[beginIndex..] : ReadOnlyMemory<byte>.Empty);
+
+            if (!finalSegment.IsEmpty) {
+                result[resultIndex] = finalSegment;
+            }
+
+            valueListBuilder.Dispose();
+
+            return result.AsMemory()[..(resultIndex + 1)];
+        }
+        /// <summary>
+        /// Delimits a contiguous region of memory based on the specified delimiter character.
+        /// </summary>
+        /// <param name="input">The region of memory that will be delimited.</param>
+        /// <param name="delimiter">A character that delimits regions within this input.</param>
+        /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character.</returns>
+        public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter) {
+            var length = input.Length;
+            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+            var delimiterIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(input.Span), length, delimiter);
+            var beginIndex = 0;
+            var loopLimit = delimiterIndices.Length;
+            var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
+            var resultIndex = 0;
+
+            for (var loopIndex = 0; ((loopIndex < loopLimit) && (beginIndex < length)); ++loopIndex) {
+                var endIndex = delimiterIndices[loopIndex];
+
+                result[resultIndex++] = input[beginIndex..endIndex];
+                beginIndex = (endIndex + 1);
+            }
+
+            var finalSegment = (((beginIndex < length) && (0 <= loopLimit)) ? input[beginIndex..] : ReadOnlyMemory<char>.Empty);
+
+            if (!finalSegment.IsEmpty) {
+                result[resultIndex] = finalSegment;
+            }
+
+            valueListBuilder.Dispose();
+
+            return result.AsMemory()[..(resultIndex + 1)];
         }
     }
 }
