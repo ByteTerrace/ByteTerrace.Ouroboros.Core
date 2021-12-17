@@ -45,7 +45,7 @@ namespace ByteTerrace.Ouroboros.Core
         /// </summary>
         /// <param name="input">The region of memory that will be delimited.</param>
         /// <param name="delimiter">A character that delimits regions within this input.</param>
-        /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped region.</param>
+        /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped subregion.</param>
         /// <param name="isEscaping">A boolean that indicates whether the input/output is/has a continuation.</param>
         /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel, ref bool isEscaping) {
@@ -126,7 +126,7 @@ namespace ByteTerrace.Ouroboros.Core
         /// </summary>
         /// <param name="input">The region of memory that will be delimited.</param>
         /// <param name="delimiter">A character that delimits regions within this input.</param>
-        /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped region.</param>
+        /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped subregion.</param>
         /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
@@ -139,7 +139,7 @@ namespace ByteTerrace.Ouroboros.Core
         /// </summary>
         /// <param name="input">The region of memory that will be delimited.</param>
         /// <param name="delimiter">A byte that delimits regions within this input.</param>
-        /// <param name="escapeSentinel">A byte that indicates the beginning/end of an escaped region.</param>
+        /// <param name="escapeSentinel">A byte that indicates the beginning/end of an escaped subregion.</param>
         /// <param name="isEscaping">A boolean that indicates whether the input/output is/has a continuation.</param>
         /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified byte; any delimiters that are bookended by the specified escape sentinel byte will be skipped.</returns>
         public static ReadOnlyMemory<ReadOnlyMemory<byte>> Delimit(this ReadOnlyMemory<byte> input, byte delimiter, byte escapeSentinel, ref bool isEscaping) {
@@ -214,6 +214,19 @@ namespace ByteTerrace.Ouroboros.Core
             valueListBuilder.Dispose();
 
             return result.AsMemory()[..(resultIndex + 1)];
+        }
+        /// <summary>
+        /// Delimits a contiguous region of memory based on the specified delimiter and escape sentinel bytes.
+        /// </summary>
+        /// <param name="input">The region of memory that will be delimited.</param>
+        /// <param name="delimiter">A byte that delimits regions within this input.</param>
+        /// <param name="escapeSentinel">A byte that indicates the beginning/end of an escaped subregion.</param>
+        /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified byte; any delimiters that are bookended by the specified escape sentinel byte will be skipped.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlyMemory<ReadOnlyMemory<byte>> Delimit(this ReadOnlyMemory<byte> input, byte delimiter, byte escapeSentinel) {
+            var isEscaping = false;
+
+            return input.Delimit(delimiter, escapeSentinel, ref isEscaping);
         }
         /// <summary>
         /// Delimits a contiguous region of memory based on the specified delimiter byte.
