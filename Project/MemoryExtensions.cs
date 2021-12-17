@@ -279,5 +279,28 @@ namespace ByteTerrace.Ouroboros.Core
 
             return result.AsMemory()[..(resultIndex + 1)];
         }
+        /// <summary>
+        /// Converts a <see cref="ReadOnlyMemory{T}"/> to an <see cref="IEnumerable{T}"/>.
+        /// </summary>
+        /// <typeparam name="T">The type that the region of memory encapsulates.</typeparam>
+        /// <param name="input">The region of memory that will be converted.</param>
+        /// <returns>An enumerable sequence whose elements are extracted from the given region of memory.</returns>
+        public static IEnumerable<T> ToEnumerable<T>(this ReadOnlyMemory<T> input) {
+            if (MemoryMarshal.TryGetArray(input, out var segment)) {
+                var array = segment.Array!;
+                var length = (segment.Offset + segment.Count);
+
+                for (var i = segment.Offset; (i < length); ++i) {
+                    yield return array[i];
+                }
+            }
+            else {
+                var length = input.Length;
+
+                for (var i = 0; (i < length); ++i) {
+                    yield return input.Span[i];
+                }
+            }
+        }
     }
 }

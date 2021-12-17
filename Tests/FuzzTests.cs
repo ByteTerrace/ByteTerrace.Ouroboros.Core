@@ -1,4 +1,3 @@
-using Microsoft.Toolkit.HighPerformance.Buffers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Linq;
@@ -18,27 +17,23 @@ namespace ByteTerrace.Ouroboros.Core.Tests
             const byte DelimiterByte = 44;
             const int SampleCount = DefaultSampleCount;
 
-            var indicesB = new ArrayPoolBufferWriter<int>();
             var lengthRng = new Random(Seed: 41);
             var stringRng = new Random(Seed: 137);
 
             for (var i = 0; (i < SampleCount); ++i) {
                 var l = GenerateRandomLength(random: lengthRng);
-                var s = stringRng.NextByteString(length: l);
-
-                s.IndicesOf(buffer: indicesB, value: DelimiterByte);
-
+                var s = stringRng.NextAsciiByteString(length: l);
+                var indicesB = s
+                    .AsSpan()
+                    .IndicesOf(value: DelimiterByte);
                 var indicesA = s
-                    .ToArray()
                     .Select((b, i) => new { Index = i, Value = b, })
                     .Where(r => (r.Value == DelimiterByte))
                     .ToArray();
 
                 for (var j = 0; (j < indicesA.Length); ++j) {
-                    Assert.AreEqual(indicesB.WrittenSpan[j], indicesA[j].Index);
+                    Assert.AreEqual(indicesB[j], indicesA[j].Index);
                 }
-
-                indicesB.Clear();
             }
         }
         [TestMethod]
@@ -46,27 +41,23 @@ namespace ByteTerrace.Ouroboros.Core.Tests
             const char DelimiterChar = ',';
             const int SampleCount = DefaultSampleCount;
 
-            var indicesB = new ArrayPoolBufferWriter<int>();
             var lengthRng = new Random(Seed: 41);
             var stringRng = new Random(Seed: 137);
 
             for (var i = 0; (i < SampleCount); ++i) {
                 var l = GenerateRandomLength(random: lengthRng);
-                var s = stringRng.NextAsciiString(length: l);
-
-                s.AsSpan().IndicesOf(buffer: indicesB, value: DelimiterChar);
-
+                var s = stringRng.NextAsciiCharString(length: l);
+                var indicesB = s
+                    .AsSpan()
+                    .IndicesOf(value: DelimiterChar);
                 var indicesA = s
-                    .ToArray()
                     .Select((b, i) => new { Index = i, Value = b, })
                     .Where(r => (r.Value == DelimiterChar))
                     .ToArray();
 
                 for (var j = 0; (j < indicesA.Length); ++j) {
-                    Assert.AreEqual(indicesB.WrittenSpan[j], indicesA[j].Index);
+                    Assert.AreEqual(indicesB[j], indicesA[j].Index);
                 }
-
-                indicesB.Clear();
             }
         }
         [TestMethod]
@@ -75,57 +66,23 @@ namespace ByteTerrace.Ouroboros.Core.Tests
             const char DelimiterChar1 = ',';
             const int SampleCount = DefaultSampleCount;
 
-            var indicesB = new ArrayPoolBufferWriter<int>();
             var lengthRng = new Random(Seed: 41);
             var stringRng = new Random(Seed: 137);
 
             for (var i = 0; (i < SampleCount); ++i) {
                 var l = GenerateRandomLength(random: lengthRng);
-                var s = stringRng.NextAsciiString(length: l);
-
-                s.AsSpan().IndicesOf(buffer: indicesB, value0: DelimiterChar0, value1: DelimiterChar1);
-
+                var s = stringRng.NextAsciiCharString(length: l);
+                var indicesB = s
+                    .AsSpan()
+                    .IndicesOf(value0: DelimiterChar0, value1: DelimiterChar1);
                 var indicesA = s
-                    .ToArray()
                     .Select((b, i) => new { Index = i, Value = b, })
                     .Where(r => ((r.Value == DelimiterChar0) || (r.Value == DelimiterChar1)))
                     .ToArray();
 
                 for (var j = 0; (j < indicesA.Length); ++j) {
-                    Assert.AreEqual(indicesB.WrittenSpan[j], indicesA[j].Index);
+                    Assert.AreEqual(indicesB[j], indicesA[j].Index);
                 }
-
-                indicesB.Clear();
-            }
-        }
-        [TestMethod]
-        public void IndicesOfTriple_FuzzChars() {
-            const char DelimiterChar0 = '.';
-            const char DelimiterChar1 = ',';
-            const char DelimiterChar2 = ';';
-            const int SampleCount = DefaultSampleCount;
-
-            var indicesB = new ArrayPoolBufferWriter<int>();
-            var lengthRng = new Random(Seed: 41);
-            var stringRng = new Random(Seed: 137);
-
-            for (var i = 0; (i < SampleCount); ++i) {
-                var l = GenerateRandomLength(random: lengthRng);
-                var s = stringRng.NextAsciiString(length: l);
-
-                s.AsSpan().IndicesOf(buffer: indicesB, value0: DelimiterChar0, value1: DelimiterChar1, value2: DelimiterChar2);
-
-                var indicesA = s
-                    .ToArray()
-                    .Select((b, i) => new { Index = i, Value = b, })
-                    .Where(r => ((r.Value == DelimiterChar0) || (r.Value == DelimiterChar1) || (r.Value == DelimiterChar2)))
-                    .ToArray();
-
-                for (var j = 0; (j < indicesA.Length); ++j) {
-                    Assert.AreEqual(indicesB.WrittenSpan[j], indicesA[j].Index);
-                }
-
-                indicesB.Clear();
             }
         }
         [TestMethod]
@@ -138,10 +95,10 @@ namespace ByteTerrace.Ouroboros.Core.Tests
 
             for (var i = 0; (i < SampleCount); ++i) {
                 var l = GenerateRandomLength(random: lengthRng);
-                var s = stringRng.NextByteString(length: l);
+                var s = stringRng.NextAsciiByteString(length: l);
 
-                var countA = s.ToArray().Where(c => (c == DelimiterByte)).Count();
-                var countB = s.OccurrencesOf(value: DelimiterByte);
+                var countA = s.Where(c => (c == DelimiterByte)).Count();
+                var countB = s.AsSpan().OccurrencesOf(value: DelimiterByte);
 
                 Assert.AreEqual(countA, countB);
             }
@@ -156,7 +113,7 @@ namespace ByteTerrace.Ouroboros.Core.Tests
 
             for (var i = 0; (i < SampleCount); ++i) {
                 var l = GenerateRandomLength(random: lengthRng);
-                var s = stringRng.NextAsciiString(length: l);
+                var s = stringRng.NextAsciiCharString(length: l);
 
                 var countA = s.Where(c => (c == DelimiterChar)).Count();
                 var countB = s.AsSpan().OccurrencesOf(value: DelimiterChar);
