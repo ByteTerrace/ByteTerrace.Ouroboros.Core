@@ -1,5 +1,6 @@
 ﻿using Microsoft.Toolkit.HighPerformance.Buffers;
 using System.Buffers;
+using System.Runtime.InteropServices;
 using System.Text;
 
 using static ByteTerrace.Ouroboros.Core.ByteLiteral;
@@ -54,7 +55,8 @@ namespace ByteTerrace.Ouroboros.Core
             byte delimiter = FieldSeparator
         ) {
             foreach (var yChunk in source) {
-                var xIndices = yChunk.Span.IndicesOf(delimiter); // TODO: Consider stackallocing the indices.
+                var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+                var xIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(yChunk.Span), yChunk.Length, delimiter);
                 var loopLimit = xIndices.Length;
                 var previousIndex = 0;
 
@@ -92,7 +94,8 @@ namespace ByteTerrace.Ouroboros.Core
             char delimiter = ','
         ) {
             foreach (var yChunk in source) {
-                var xIndices = yChunk.Span.IndicesOf(delimiter); // TODO: Consider stackallocing the indices.
+                var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+                var xIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(yChunk.Span), yChunk.Length, delimiter);
                 var loopLimit = xIndices.Length;
                 var previousIndex = 0;
 
@@ -198,13 +201,14 @@ namespace ByteTerrace.Ouroboros.Core
 
             foreach (var record in source) {
                 var fieldMemory = ReadOnlyMemory<byte>.Empty;
-                var loopLimit = (record.Memory.Length - 1);
+                var recordMemory = record.Memory;
+                var loopLimit = (recordMemory.Length - 1);
 
                 if (0 < loopLimit) {
                     var loopIndex = 0;
 
                     do {
-                        fieldMemory = record.Memory.Span[loopIndex++];
+                        fieldMemory = recordMemory.Span[loopIndex++];
 
                         if (0 < fieldMemory.Length) {
                             if (!isBinaryFieldSupportEnabled || (-1 == fieldMemory.Span.IndexOfAny(FieldSeparator, RecordSeparator, EscapeSentinel))) {
@@ -223,7 +227,7 @@ namespace ByteTerrace.Ouroboros.Core
                     } while (loopIndex < loopLimit);
                 }
 
-                fieldMemory = record.Memory.Span[^1];
+                fieldMemory = recordMemory.Span[^1];
 
                 if (0 < fieldMemory.Length) {
                     if (!isBinaryFieldSupportEnabled || (-1 == fieldMemory.Span.IndexOfAny(FieldSeparator, RecordSeparator, EscapeSentinel))) {
