@@ -200,7 +200,10 @@ namespace ByteTerrace.Ouroboros.Core
                         }
                     }
                     else if (!stringBuilder.IsEmpty) {
-                        result[resultIndex] = stringBuilder;
+                        if ((1 < stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
+                            result[resultIndex] = stringBuilder;
+                        }
+
                         stringBuilder = ReadOnlyMemory<char>.Empty;
                     }
 
@@ -230,18 +233,16 @@ namespace ByteTerrace.Ouroboros.Core
                 beginIndex = (endIndex + 1);
             }
 
-            var finalSegment = (((beginIndex < length) && (0 <= loopLimit)) ? input[beginIndex..] : ReadOnlyMemory<char>.Empty);
-
-            if (stringBuilder.IsEmpty) {
-                result[resultIndex] = finalSegment;
-            }
-            else {
-                if (finalSegment.IsEmpty) {
-                    result[resultIndex] = stringBuilder;
+            if ((beginIndex < length) && (0 <= loopLimit)) {
+                if (stringBuilder.IsEmpty) {
+                    result[resultIndex] = input[beginIndex..];
                 }
                 else {
-                    result[resultIndex] = stringBuilder.Concat(finalSegment);
+                    result[resultIndex] = stringBuilder.Concat(input[beginIndex..]);
                 }
+            }
+            else if (!stringBuilder.IsEmpty && ((1 < stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0]))) {
+                result[resultIndex] = stringBuilder;
             }
 
             valueListBuilder.Dispose();
