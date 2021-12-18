@@ -174,8 +174,9 @@ namespace ByteTerrace.Ouroboros.Core
         /// <param name="input"></param>
         /// <param name="escapeSentinel"></param>
         /// <param name="isEscaping"></param>
+        /// <param name="numCharsRead"></param>
         /// <returns></returns>
-        public static ReadOnlyMemory<ReadOnlyMemory<char>> DelimitLines(this ReadOnlyMemory<char> input, char escapeSentinel, ref bool isEscaping) {
+        public static ReadOnlyMemory<ReadOnlyMemory<char>> DelimitLines(this ReadOnlyMemory<char> input, char escapeSentinel, ref bool isEscaping, out int numCharsRead) {
             var length = input.Length;
             var span = input.Span;
             var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
@@ -206,7 +207,7 @@ namespace ByteTerrace.Ouroboros.Core
                 }
             }
 
-            valueListBuilder.Dispose();
+            numCharsRead = ((0 == beginIndex) ? length : beginIndex);
 
             return result.AsMemory()[..resultIndex];
         }
@@ -220,7 +221,7 @@ namespace ByteTerrace.Ouroboros.Core
         public static ReadOnlyMemory<ReadOnlyMemory<char>> DelimitLines(this ReadOnlyMemory<char> input, char escapeSentinel) {
             var isEscaping = false;
 
-            return input.DelimitLines(escapeSentinel, ref isEscaping);
+            return input.DelimitLines(escapeSentinel, ref isEscaping, out _);
         }
         /// <summary>
         /// 
@@ -233,7 +234,7 @@ namespace ByteTerrace.Ouroboros.Core
             var stringBuilder = ReadOnlyMemory<char>.Empty;
 
             foreach (var region in input) {
-                var lines = region.DelimitLines(escapeSentinel, ref isEscaping);
+                var lines = region.DelimitLines(escapeSentinel, ref isEscaping, out var numCharsRead);
 
                 if (!lines.IsEmpty) {
                     if (stringBuilder.IsEmpty) {
@@ -248,9 +249,11 @@ namespace ByteTerrace.Ouroboros.Core
                             if (enumerator.MoveNext()) {
                                 yield return stringBuilder.Concat(enumerator.Current);
 
-                                do {
+                                stringBuilder = ReadOnlyMemory<char>.Empty;
+
+                                while (enumerator.MoveNext()) {
                                     yield return enumerator.Current;
-                                } while (enumerator.MoveNext());
+                                }
                             }
                         }
                         else {
@@ -260,6 +263,9 @@ namespace ByteTerrace.Ouroboros.Core
                         }
                     }
 
+                    if (numCharsRead < region.Length) {
+                        stringBuilder = region[numCharsRead..].ToArray().AsMemory();
+                    }
                 }
                 else {
                     if (stringBuilder.IsEmpty) {
