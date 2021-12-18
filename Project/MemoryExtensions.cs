@@ -187,8 +187,26 @@ namespace ByteTerrace.Ouroboros.Core
 
             for (var loopIndex = 0; ((loopIndex < loopLimit) && (beginIndex < length)); ++loopIndex) {
                 var endIndex = delimiterIndices[loopIndex];
+                var currentChar = span[endIndex];
 
-                if (escapeSentinel == span[endIndex]) {
+                if ((currentChar == delimiter) && !isEscaping) {
+                    if (beginIndex < endIndex) {
+                        if (stringBuilder.IsEmpty) {
+                            result[resultIndex] = input[beginIndex..endIndex];
+                        }
+                        else {
+                            result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
+                            stringBuilder = ReadOnlyMemory<char>.Empty;
+                        }
+                    }
+                    else if (!stringBuilder.IsEmpty) {
+                        result[resultIndex] = stringBuilder;
+                        stringBuilder = ReadOnlyMemory<char>.Empty;
+                    }
+
+                    ++resultIndex;
+                }
+                else if (currentChar == escapeSentinel) {
                     if (beginIndex < endIndex) {
                         if (stringBuilder.IsEmpty) {
                             stringBuilder = input[beginIndex..endIndex];
@@ -206,35 +224,18 @@ namespace ByteTerrace.Ouroboros.Core
                         }
                     }
 
-                    beginIndex = (endIndex + 1);
                     isEscaping = !isEscaping;
                 }
-                else if (!isEscaping) {
-                    if (beginIndex < endIndex) {
-                        if (stringBuilder.IsEmpty) {
-                            stringBuilder = input[beginIndex..endIndex];
-                        }
-                        else {
-                            stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
-                        }
-                    }
 
-                    if (!stringBuilder.IsEmpty) {
-                        result[resultIndex] = stringBuilder;
-                        stringBuilder = ReadOnlyMemory<char>.Empty;
-                    }
-
-                    beginIndex = (endIndex + 1);
-                    ++resultIndex;
-                }
+                beginIndex = (endIndex + 1);
             }
 
             var finalSegment = (((beginIndex < length) && (0 <= loopLimit)) ? input[beginIndex..] : ReadOnlyMemory<char>.Empty);
 
-            if (stringBuilder.IsEmpty && !finalSegment.IsEmpty) {
+            if (stringBuilder.IsEmpty) {
                 result[resultIndex] = finalSegment;
             }
-            else if (!stringBuilder.IsEmpty) {
+            else {
                 if (finalSegment.IsEmpty) {
                     result[resultIndex] = stringBuilder;
                 }
@@ -291,6 +292,109 @@ namespace ByteTerrace.Ouroboros.Core
             valueListBuilder.Dispose();
 
             return result.AsMemory()[..(resultIndex + 1)];
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="input"></param>
+        /// <param name="escapeSentinel"></param>
+        /// <param name="isEscaping"></param>
+        /// <returns></returns>
+        public static ReadOnlyMemory<ReadOnlyMemory<char>> DelimitLines(this ReadOnlyMemory<char> input, char escapeSentinel, ref bool isEscaping) {
+            var length = input.Length;
+            var span = input.Span;
+            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+            var delimiterIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(span), length, '\n', '\r', escapeSentinel);
+            var beginIndex = 0;
+            var loopLimit = delimiterIndices.Length;
+            var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
+            var resultIndex = 0;
+
+            for (var loopIndex = 0; ((loopIndex < loopLimit) && (beginIndex < length)); ++loopIndex) {
+                var endIndex = delimiterIndices[loopIndex];
+                var current = span[endIndex];
+
+                if (escapeSentinel == current) {
+                    isEscaping = !isEscaping;
+                }
+                else if (!isEscaping) {
+                    var segment = ((beginIndex < endIndex) ? input[beginIndex..endIndex] : ReadOnlyMemory<char>.Empty);
+
+                    beginIndex = (endIndex + 1);
+
+                    if (('\r' == current) && (beginIndex < length) && ('\n' == span[beginIndex])) {
+                        ++beginIndex;
+                        ++loopIndex;
+                    }
+
+                    result[resultIndex++] = segment;
+                }
+            }
+
+            valueListBuilder.Dispose();
+
+            return result.AsMemory()[..resultIndex];
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="input"></param>
+        /// <param name="escapeSentinel"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlyMemory<ReadOnlyMemory<char>> DelimitLines(this ReadOnlyMemory<char> input, char escapeSentinel) {
+            var isEscaping = false;
+
+            return input.DelimitLines(escapeSentinel, ref isEscaping);
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="input"></param>
+        /// <param name="escapeSentinel"></param>
+        /// <returns></returns>
+        public static IEnumerable<ReadOnlyMemory<char>> DelimitLines(this IEnumerable<ReadOnlyMemory<char>> input, char escapeSentinel) {
+            var isEscaping = false;
+            var stringBuilder = ReadOnlyMemory<char>.Empty;
+
+            foreach (var region in input) {
+                var lines = region.DelimitLines(escapeSentinel, ref isEscaping);
+
+                if (!lines.IsEmpty) {
+                    if (stringBuilder.IsEmpty) {
+                        foreach (var line in lines.ToEnumerable()) {
+                            yield return line;
+                        }
+                    }
+                    else {
+                        if (1 < lines.Length) {
+                            var enumerator = lines.ToEnumerable().GetEnumerator();
+
+                            if (enumerator.MoveNext()) {
+                                yield return stringBuilder.Concat(enumerator.Current);
+
+                                do {
+                                    yield return enumerator.Current;
+                                } while (enumerator.MoveNext());
+                            }
+                        }
+                        else {
+                            yield return stringBuilder.Concat(lines.Span[0]);
+
+                            stringBuilder = ReadOnlyMemory<char>.Empty;
+                        }
+                    }
+
+                }
+                else {
+                    if (stringBuilder.IsEmpty) {
+                        stringBuilder = region.ToArray().AsMemory();
+                    }
+                    else {
+                        stringBuilder = stringBuilder.Concat(region);
+                    }
+                }
+            }
         }
         /// <summary>
         /// Converts a <see cref="ReadOnlyMemory{T}"/> to an <see cref="IEnumerable{T}"/>.
