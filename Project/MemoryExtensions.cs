@@ -237,30 +237,28 @@ namespace ByteTerrace.Ouroboros.Core
                 var lines = region.DelimitLines(escapeSentinel, ref isEscaping, out var numCharsRead);
 
                 if (!lines.IsEmpty) {
-                    if (stringBuilder.IsEmpty) {
+                    if ((1 < lines.Length) && !stringBuilder.IsEmpty) {
+                        var enumerator = lines.ToEnumerable().GetEnumerator();
+
+                        if (enumerator.MoveNext()) {
+                            yield return stringBuilder.Concat(enumerator.Current);
+
+                            stringBuilder = ReadOnlyMemory<char>.Empty;
+
+                            while (enumerator.MoveNext()) {
+                                yield return enumerator.Current;
+                            }
+                        }
+                    }
+                    else if (stringBuilder.IsEmpty) {
                         foreach (var line in lines.ToEnumerable()) {
                             yield return line;
                         }
                     }
                     else {
-                        if (1 < lines.Length) {
-                            var enumerator = lines.ToEnumerable().GetEnumerator();
+                        yield return stringBuilder.Concat(lines.Span[0]);
 
-                            if (enumerator.MoveNext()) {
-                                yield return stringBuilder.Concat(enumerator.Current);
-
-                                stringBuilder = ReadOnlyMemory<char>.Empty;
-
-                                while (enumerator.MoveNext()) {
-                                    yield return enumerator.Current;
-                                }
-                            }
-                        }
-                        else {
-                            yield return stringBuilder.Concat(lines.Span[0]);
-
-                            stringBuilder = ReadOnlyMemory<char>.Empty;
-                        }
+                        stringBuilder = ReadOnlyMemory<char>.Empty;
                     }
 
                     if (numCharsRead < region.Length) {
