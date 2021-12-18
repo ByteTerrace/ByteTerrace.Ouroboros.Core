@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using Microsoft.Toolkit.HighPerformance;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace ByteTerrace.Ouroboros.Core
@@ -52,7 +53,7 @@ namespace ByteTerrace.Ouroboros.Core
             var length = input.Length;
             var span = input.Span;
             var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
-            var delimiterIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(span), length, delimiter, escapeSentinel);
+            var delimiterIndices = valueListBuilder.BuildValueList(ref span.DangerousGetReference(), length, delimiter, escapeSentinel);
             var beginIndex = 0;
             var loopLimit = delimiterIndices.Length;
             var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
@@ -145,7 +146,7 @@ namespace ByteTerrace.Ouroboros.Core
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter) {
             var length = input.Length;
             var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
-            var delimiterIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(input.Span), length, delimiter);
+            var delimiterIndices = valueListBuilder.BuildValueList(ref input.Span.DangerousGetReference(), length, delimiter);
             var beginIndex = 0;
             var loopLimit = delimiterIndices.Length;
             var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
@@ -180,7 +181,7 @@ namespace ByteTerrace.Ouroboros.Core
             var length = input.Length;
             var span = input.Span;
             var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
-            var delimiterIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(span), length, '\n', '\r', escapeSentinel);
+            var delimiterIndices = valueListBuilder.BuildValueList(ref span.DangerousGetReference(), length, '\n', '\r', escapeSentinel);
             var beginIndex = 0;
             var loopLimit = delimiterIndices.Length;
             var result = new ReadOnlyMemory<char>[(loopLimit + 1)];

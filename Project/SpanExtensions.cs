@@ -1,8 +1,8 @@
-﻿using Microsoft.Toolkit.HighPerformance.Buffers;
+﻿using Microsoft.Toolkit.HighPerformance;
+using Microsoft.Toolkit.HighPerformance.Buffers;
 using System.Buffers;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
@@ -904,7 +904,7 @@ namespace ByteTerrace.Ouroboros.Core
             var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
 
             return BuildValueList(
-                    input: ref MemoryMarshal.GetReference(span),
+                    input: ref span.DangerousGetReference(),
                     length: span.Length,
                     value: value,
                     valueListBuilder: ref valueListBuilder
@@ -919,7 +919,7 @@ namespace ByteTerrace.Ouroboros.Core
             var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
 
             return BuildValueList(
-                    input: ref MemoryMarshal.GetReference(span),
+                    input: ref span.DangerousGetReference(),
                     length: span.Length,
                     value: value,
                     valueListBuilder: ref valueListBuilder
@@ -934,7 +934,7 @@ namespace ByteTerrace.Ouroboros.Core
             var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
 
             return BuildValueList(
-                    input: ref MemoryMarshal.GetReference(span),
+                    input: ref span.DangerousGetReference(),
                     length: span.Length,
                     value0: value0,
                     value1: value1,
@@ -948,7 +948,7 @@ namespace ByteTerrace.Ouroboros.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int OccurrencesOf(this ReadOnlySpan<byte> span, byte value) =>
             OccurrencesOf(
-                input: ref MemoryMarshal.GetReference(span),
+                input: ref span.DangerousGetReference(),
                 length: span.Length,
                 value: value
             );
@@ -958,7 +958,7 @@ namespace ByteTerrace.Ouroboros.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int OccurrencesOf(this ReadOnlySpan<char> span, char value) =>
             OccurrencesOf(
-                input: ref MemoryMarshal.GetReference(span),
+                input: ref span.DangerousGetReference(),
                 length: span.Length,
                 value: value
             );

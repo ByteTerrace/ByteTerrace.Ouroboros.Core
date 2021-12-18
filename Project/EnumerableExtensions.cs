@@ -1,6 +1,6 @@
-﻿using Microsoft.Toolkit.HighPerformance.Buffers;
+﻿using Microsoft.Toolkit.HighPerformance;
+using Microsoft.Toolkit.HighPerformance.Buffers;
 using System.Buffers;
-using System.Runtime.InteropServices;
 using System.Text;
 
 using static ByteTerrace.Ouroboros.Core.ByteLiteral;
@@ -56,7 +56,7 @@ namespace ByteTerrace.Ouroboros.Core
         ) {
             foreach (var yChunk in source) {
                 var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
-                var xIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(yChunk.Span), yChunk.Length, delimiter);
+                var xIndices = valueListBuilder.BuildValueList(ref yChunk.Span.DangerousGetReference(), yChunk.Length, delimiter);
                 var loopLimit = xIndices.Length;
                 var previousIndex = 0;
 
@@ -95,7 +95,7 @@ namespace ByteTerrace.Ouroboros.Core
         ) {
             foreach (var yChunk in source) {
                 var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
-                var xIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(yChunk.Span), yChunk.Length, delimiter);
+                var xIndices = valueListBuilder.BuildValueList(ref yChunk.Span.DangerousGetReference(), yChunk.Length, delimiter);
                 var loopLimit = xIndices.Length;
                 var previousIndex = 0;
 
