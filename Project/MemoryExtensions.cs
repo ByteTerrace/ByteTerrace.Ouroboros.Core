@@ -81,6 +81,7 @@ namespace ByteTerrace.Ouroboros.Core
                         stringBuilder = ReadOnlyMemory<char>.Empty;
                     }
 
+                    beginIndex = (endIndex + 1);
                     ++resultIndex;
                 }
                 else if (currentChar == escapeSentinel) {
@@ -101,10 +102,9 @@ namespace ByteTerrace.Ouroboros.Core
                         }
                     }
 
+                    beginIndex = (endIndex + 1);
                     isEscaping = !isEscaping;
                 }
-
-                beginIndex = (endIndex + 1);
             }
 
             if ((beginIndex < length) && (0 <= loopLimit)) {
