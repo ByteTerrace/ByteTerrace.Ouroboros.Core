@@ -1,5 +1,6 @@
 ﻿using Microsoft.Toolkit.HighPerformance;
 using Microsoft.Toolkit.HighPerformance.Buffers;
+using Microsoft.Toolkit.HighPerformance.Helpers;
 using System.Buffers;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -829,6 +830,140 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             return ((int)index);
+        }
+
+        internal static ReadOnlySpan<ulong> BuildDelimiterIndex(this ref ValueListBuilder<ulong> valueListBuilder, ref char input, ref bool isEscaping, int length, char delimiter, char escapeSentinel) {
+            var index = ((nint)0);
+
+            if (Sse2.IsSupported || Avx2.IsSupported) {
+                index = BuildDelimiterIndexVectorized(ref valueListBuilder, ref input, ref isEscaping, length, delimiter, escapeSentinel);
+            }
+
+            var previousDelimiterIndex = (1 < valueListBuilder.Length) && (0 != BitHelper.ExtractRange(valueListBuilder[^2], 32, 2)) ? ((uint)valueListBuilder[^2]) : 23UL;
+
+            while (index < length) {
+                if (Unsafe.Add(ref input, index) == escapeSentinel) {
+                    if (!isEscaping || ((index + 1) >= length) || (escapeSentinel != Unsafe.Add(ref input, (index + 1)))) {
+                        valueListBuilder.Append(((ulong)index));
+                    }
+                    else {
+                        valueListBuilder[^1] = ((ulong)index);
+                    }
+
+                    isEscaping = !isEscaping;
+                }
+                else if (!isEscaping && (Unsafe.Add(ref input, index) == delimiter)) {
+                    if (3 != (((ulong)index) - previousDelimiterIndex)) {
+                        valueListBuilder.Append(((ulong)index) | (1UL << 32));
+                    }
+                    else {
+                        valueListBuilder[^1] = (((ulong)index) | (1UL << 33));
+                    }
+
+                    previousDelimiterIndex = ((ulong)index);
+                }
+
+                ++index;
+            }
+
+            return valueListBuilder.AsSpan();
+        }
+        internal static unsafe nint BuildDelimiterIndexVectorized(this ref ValueListBuilder<ulong> valueListBuilder, ref char input, ref bool isEscaping, int length, char delimiter, char escapeSentinel) {
+            var index = ((nint)0);
+
+            if ((7 < length) && (index < length)) {
+                nint lengthToExamine;
+
+                var escapeLiteralContinuationMask = 0U;
+                var previousDelimiterIndex = 23UL;
+
+                if (Avx2.IsSupported) {
+                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
+                        var delimiterVector = Vector128.Create(delimiter);
+                        var escapeSentinelVector = Vector128.Create(escapeSentinel);
+                        var searchVector = LoadVector128(ref input, index);
+                        var delimiterVectorMask = Sse2.MoveMask(Sse2.CompareEqual(delimiterVector, searchVector).AsByte());
+                        var escapeSentinelVectorMask = Sse2.MoveMask(Sse2.CompareEqual(escapeSentinelVector, searchVector).AsByte());
+
+                        for (var offset = 0; (offset < 8); ++offset) {
+                            if (!isEscaping && BitHelper.HasFlag(((uint)delimiterVectorMask), (offset * 2))) { // delimiter
+                                var value = ((ulong)index) + ((uint)offset);
+
+                                if (3 != (value - previousDelimiterIndex)) {
+                                    valueListBuilder.Append(value | (1UL << 32));
+                                }
+                                else {
+                                    valueListBuilder[^1] = (value | (1UL << 33));
+                                }
+
+                                previousDelimiterIndex = value;
+                            }
+                            else if (BitHelper.HasFlag(((uint)escapeSentinelVectorMask), (offset * 2))) { // escapeSentinel
+                                if (isEscaping && BitHelper.HasFlag((escapeLiteralContinuationMask | (((uint)escapeSentinelVectorMask) << 1) & ((uint)escapeSentinelVectorMask)), (offset * 2))) {
+                                    valueListBuilder[^1] = (((ulong)index) + ((uint)offset));
+                                }
+                                else {
+                                    valueListBuilder.Append((((ulong)index) + ((uint)offset)));
+                                }
+
+                                isEscaping = !isEscaping;
+                            }
+                        }
+
+                        escapeLiteralContinuationMask = (((uint)escapeSentinelVectorMask) >> 31);
+                        index += 8;
+                    }
+
+                    lengthToExamine = GetCharVector256SpanLength(index, length);
+
+                    if (15 < lengthToExamine) {
+                        var delimiterVector = Vector256.Create(delimiter);
+                        var escapeSentinelVector = Vector256.Create(escapeSentinel);
+
+                        do {
+                            var searchVector = LoadVector256(ref input, index);
+                            var delimiterVectorMask = Avx2.MoveMask(Avx2.CompareEqual(delimiterVector, searchVector).AsByte());
+                            var escapeSentinelVectorMask = Avx2.MoveMask(Avx2.CompareEqual(escapeSentinelVector, searchVector).AsByte());
+
+                            for (var offset = 0; (offset < 16); ++offset) {
+                                if (!isEscaping && BitHelper.HasFlag(((uint)delimiterVectorMask), (offset * 2))) { // delimiter
+                                    var value = ((ulong)index) + ((uint)offset);
+
+                                    if (3 != (value - previousDelimiterIndex)) {
+                                        valueListBuilder.Append(value | (1UL << 32));
+                                    }
+                                    else {
+                                        valueListBuilder[^1] = (value | (1UL << 33));
+                                    }
+
+                                    previousDelimiterIndex = value;
+                                }
+                                else if (BitHelper.HasFlag(((uint)escapeSentinelVectorMask), (offset * 2))) { // escapeSentinel
+                                    var value = ((ulong)index) + ((uint)offset);
+
+                                    if (isEscaping && BitHelper.HasFlag((escapeLiteralContinuationMask | (((uint)escapeSentinelVectorMask) << 1) & ((uint)escapeSentinelVectorMask)), (offset * 2))) {
+                                        valueListBuilder[^1] = value;
+                                    }
+                                    else {
+                                        valueListBuilder.Append(value);
+                                    }
+
+                                    isEscaping = !isEscaping;
+                                }
+                            }
+
+                            escapeLiteralContinuationMask = (((uint)escapeSentinelVectorMask) >> 31);
+                            index += 16;
+                            lengthToExamine -= 16;
+                        } while (15 < lengthToExamine);
+                    }
+                }
+                else if (Sse2.IsSupported) {
+                    throw new NotSupportedException();
+                }
+            }
+
+            return index;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
