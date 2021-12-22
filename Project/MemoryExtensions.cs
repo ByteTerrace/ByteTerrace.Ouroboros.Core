@@ -1,7 +1,7 @@
 ﻿using Microsoft.Toolkit.HighPerformance;
-using Microsoft.Toolkit.HighPerformance.Helpers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.X86;
 
 namespace ByteTerrace.Ouroboros.Core
 {
@@ -42,64 +42,60 @@ namespace ByteTerrace.Ouroboros.Core
 
             return result.AsMemory();
         }
-        /// <summary>
-        /// Delimits a contiguous region of memory based on the specified delimiter and escape sentinel characters.
-        /// </summary>
-        /// <param name="input">The region of memory that will be delimited.</param>
-        /// <param name="delimiter">A character that delimits regions within this input.</param>
-        /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped subregion.</param>
-        /// <param name="isEscaping">A boolean that indicates whether the input/output is/has a continuation.</param>
-        /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
-        public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel, ref bool isEscaping) {
+
+        internal static ReadOnlyMemory<ReadOnlyMemory<byte>> DelimitCore<T>(this ReadOnlyMemory<T> input, byte delimiter, byte escapeSentinel, bool isNullTerminated) where T : unmanaged {
+            var inputBytes = input.AsBytes();
             var length = input.Length;
-            var span = input.Span;
-            var valueListBuilder = new ValueListBuilder<ulong>(stackalloc ulong[64]);
-            var delimiterIndices = valueListBuilder.BuildDelimiterIndex(ref span.DangerousGetReference(), ref isEscaping, length, delimiter, escapeSentinel);
-            var loopLimit = delimiterIndices.Length;
+            var valueListBuilder = new ValueListBuilder<uint>(new uint[128]);
+
+            if (Sse2.IsSupported || Avx2.IsSupported) {
+                valueListBuilder.InitializeValueListVectorized(ref inputBytes.Span.DangerousGetReference(), length, delimiter, escapeSentinel);
+            }
+
+            var loopLimit = valueListBuilder.Length;
 
             if (0 < loopLimit) {
                 var beginIndex = 0;
+                var increment = (1 + isNullTerminated.ToByte());
                 var loopIndex = 0;
-                var stringBuilder = ReadOnlyMemory<char>.Empty;
-                var result = new ReadOnlyMemory<char>[loopLimit];
+                var stringBuilder = ReadOnlyMemory<byte>.Empty;
+                var result = new ReadOnlyMemory<byte>[loopLimit];
                 var resultIndex = 0;
 
                 do {
-                    var endIndexFlags = delimiterIndices[loopIndex];
-                    var endIndex = ((int)endIndexFlags);
+                    var endIndexFlags = valueListBuilder[loopIndex];
+                    var endIndex = ((int)(endIndexFlags & 0b01111111111111111111111111111111));
 
-                    if (0 != BitHelper.ExtractRange(endIndexFlags, 32, 2)) {
-                        if (BitHelper.HasFlag(endIndexFlags, 32)) {
-                            if (beginIndex == endIndex) {
-                                result[resultIndex] = stringBuilder;
-                            }
-                            else {
-                                result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
-                            }
-
-                            stringBuilder = ReadOnlyMemory<char>.Empty;
+                    if (0 != (endIndexFlags & 0b10000000000000000000000000000000)) {
+                        if (beginIndex == endIndex) {
+                            result[resultIndex] = stringBuilder;
                         }
+                        else {
+                            result[resultIndex] = stringBuilder.Concat(inputBytes[beginIndex..endIndex]);
+                        }
+
+                        stringBuilder = ReadOnlyMemory<byte>.Empty;
 
                         resultIndex++;
                     }
                     else if (beginIndex < endIndex) {
                         if (stringBuilder.IsEmpty) {
-                            stringBuilder = input[beginIndex..endIndex];
+                            stringBuilder = inputBytes[beginIndex..endIndex];
                         }
                         else {
-                            stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
+                            stringBuilder = stringBuilder.Concat(inputBytes[beginIndex..endIndex]);
                         }
                     }
 
-                    beginIndex = (endIndex + 1);
+                    beginIndex = (endIndex + increment);
                 } while (++loopIndex < loopLimit);
 
                 if (beginIndex < length) {
                     if (stringBuilder.IsEmpty) {
-                        result[resultIndex] = input[beginIndex..];
+                        result[resultIndex] = inputBytes[beginIndex..];
                     }
                     else {
-                        result[resultIndex] = stringBuilder.Concat(input[beginIndex..]);
+                        result[resultIndex] = stringBuilder.Concat(inputBytes[beginIndex..]);
                     }
                 }
                 else if (!stringBuilder.IsEmpty && (1 != stringBuilder.Length || escapeSentinel != stringBuilder.Span[0])) {
@@ -113,22 +109,15 @@ namespace ByteTerrace.Ouroboros.Core
             else {
                 valueListBuilder.Dispose();
 
-                return new ReadOnlyMemory<char>[1] { input, }.AsMemory();
+                return new ReadOnlyMemory<byte>[1] { input.AsBytes(), }.AsMemory();
             }
         }
-        /// <summary>
-        /// Delimits a contiguous region of memory based on the specified delimiter and escape sentinel characters.
-        /// </summary>
-        /// <param name="input">The region of memory that will be delimited.</param>
-        /// <param name="delimiter">A character that delimits regions within this input.</param>
-        /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped subregion.</param>
-        /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
-            var isEscaping = false;
 
-            return input.Delimit(delimiter, escapeSentinel, ref isEscaping);
-        }
+        public static ReadOnlyMemory<ReadOnlyMemory<byte>> Delimit(this ReadOnlyMemory<byte> input, byte delimiter, byte escapeSentinel) =>
+            input.DelimitCore(delimiter: delimiter, escapeSentinel: escapeSentinel, isNullTerminated: false);
+        public static ReadOnlyMemory<ReadOnlyMemory<byte>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) =>
+            input.AsBytes().DelimitCore(delimiter: ((byte)delimiter), escapeSentinel: ((byte)escapeSentinel), isNullTerminated: true);
+
         /// <summary>
         /// Delimits a contiguous region of memory based on the specified delimiter character.
         /// </summary>
