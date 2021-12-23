@@ -41,7 +41,7 @@ namespace ByteTerrace.Ouroboros.Core
             var length = m_span.Length;
 
             if (index >= length) {
-                ResizeBuffer(minimumSize: (length * 2));
+                ResizeBuffer(minimumSize: (length << 1));
             }
 
             m_span[m_index++] = value;
