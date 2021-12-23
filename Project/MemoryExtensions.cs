@@ -55,7 +55,6 @@ namespace ByteTerrace.Ouroboros.Core
 
             if (0 < loopLimit) {
                 var beginIndex = 0;
-                var endIndex = 0;
                 var isEscaping = false;
                 var loopIndex = 0;
                 var stringBuilder = ReadOnlyMemory<char>.Empty;
@@ -63,11 +62,12 @@ namespace ByteTerrace.Ouroboros.Core
                 var resultIndex = 0;
 
                 do {
-                    ref var endIndexFlags = ref controlIndices[loopIndex];
+                    var controlIndex = controlIndices[loopIndex];
+                    var endIndex = ((int)(controlIndex >> 1)); // divide index by two; byte -> char
 
-                    endIndex = ((int)((endIndexFlags & 0b01111111111111111111111111111111) >> 1/* divide index by two; byte -> char */));
+                    if (0 != (controlIndex & 0b10000000000000000000000000000000)) { // isDelimiter
+                        endIndex &= 0b00111111111111111111111111111111;
 
-                    if (0 != (endIndexFlags & 0b10000000000000000000000000000000)) { // isDelimiter
                         if (!isEscaping) { // isEndOfString
                             if (beginIndex == endIndex) {
                                 if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
