@@ -386,7 +386,7 @@ namespace ByteTerrace.Ouroboros.Core
             return ((int)result);
         }
 
-        internal static ReadOnlySpan<int> BuildValueList(this ref ValueListBuilder<int> valueListBuilder, ref byte input, int length, byte value) {
+        internal static ReadOnlySpan<int> BuildValueList(this ref ArrayPoolList<int> valueListBuilder, ref byte input, int length, byte value) {
             var index = 0;
 
             if (Sse2.IsSupported || Avx2.IsSupported) {
@@ -397,13 +397,13 @@ namespace ByteTerrace.Ouroboros.Core
                 var b = Unsafe.AddByteOffset(ref input, ((nuint)index));
 
                 if (b == value) {
-                    valueListBuilder.Append(index);
+                    valueListBuilder.Add(index);
                 }
             }
 
-            return valueListBuilder.AsSpan();
+            return valueListBuilder.WrittenSpan;
         }
-        internal static ReadOnlySpan<int> BuildValueList(this ref ValueListBuilder<int> valueListBuilder, ref char input, int length, char value) {
+        internal static ReadOnlySpan<int> BuildValueList(this ref ArrayPoolList<int> valueListBuilder, ref char input, int length, char value) {
             var index = 0;
 
             if (Sse2.IsSupported || Avx2.IsSupported) {
@@ -414,13 +414,13 @@ namespace ByteTerrace.Ouroboros.Core
                 var c = Unsafe.Add(ref input, index);
 
                 if (c == value) {
-                    valueListBuilder.Append(index);
+                    valueListBuilder.Add(index);
                 }
             }
 
-            return valueListBuilder.AsSpan();
+            return valueListBuilder.WrittenSpan;
         }
-        internal static ReadOnlySpan<int> BuildValueList(this ref ValueListBuilder<int> valueListBuilder, ref char input, int length, char value0, char value1) {
+        internal static ReadOnlySpan<int> BuildValueList(this ref ArrayPoolList<int> valueListBuilder, ref char input, int length, char value0, char value1) {
             var index = 0;
 
             if (Sse2.IsSupported || Avx2.IsSupported) {
@@ -431,13 +431,13 @@ namespace ByteTerrace.Ouroboros.Core
                 var c = Unsafe.Add(ref input, index);
 
                 if ((c == value0) || (c == value1)) {
-                    valueListBuilder.Append(index);
+                    valueListBuilder.Add(index);
                 }
             }
 
-            return valueListBuilder.AsSpan();
+            return valueListBuilder.WrittenSpan;
         }
-        internal static ReadOnlySpan<int> BuildValueList(this ref ValueListBuilder<int> valueListBuilder, ref char input, int length, char value0, char value1, char value2) {
+        internal static ReadOnlySpan<int> BuildValueList(this ref ArrayPoolList<int> valueListBuilder, ref char input, int length, char value0, char value1, char value2) {
             var index = 0;
 
             if (Sse2.IsSupported || Avx2.IsSupported) {
@@ -448,13 +448,13 @@ namespace ByteTerrace.Ouroboros.Core
                 var c = Unsafe.Add(ref input, index);
 
                 if ((c == value0) || (c == value1) || (c == value2)) {
-                    valueListBuilder.Append(index);
+                    valueListBuilder.Add(index);
                 }
             }
 
-            return valueListBuilder.AsSpan();
+            return valueListBuilder.WrittenSpan;
         }
-        internal static unsafe int BuildValueListVectorized(this ref ValueListBuilder<int> valueListBuilder, ref byte input, int length, byte value) {
+        internal static unsafe int BuildValueListVectorized(this ref ArrayPoolList<int> valueListBuilder, ref byte input, int length, byte value) {
             var index = ((nuint)0);
 
             if ((15 < length) && (((int)index) < length)) {
@@ -467,7 +467,7 @@ namespace ByteTerrace.Ouroboros.Core
                         while (0 != mask) {
                             var m = BitOperations.TrailingZeroCount(mask);
 
-                            valueListBuilder.Append(((int)index) + m);
+                            valueListBuilder.Add(((int)index) + m);
                             mask &= (mask - 1);
                         }
 
@@ -485,7 +485,7 @@ namespace ByteTerrace.Ouroboros.Core
                             while (0 != mask) {
                                 var m = BitOperations.TrailingZeroCount(mask);
 
-                                valueListBuilder.Append(((int)index) + m);
+                                valueListBuilder.Add(((int)index) + m);
                                 mask &= (mask - 1);
                             }
 
@@ -506,7 +506,7 @@ namespace ByteTerrace.Ouroboros.Core
                             while (0 != mask) {
                                 var m = BitOperations.TrailingZeroCount(mask);
 
-                                valueListBuilder.Append(((int)index) + m);
+                                valueListBuilder.Add(((int)index) + m);
                                 mask &= (mask - 1);
                             }
 
@@ -519,7 +519,7 @@ namespace ByteTerrace.Ouroboros.Core
 
             return ((int)index);
         }
-        internal static unsafe int BuildValueListVectorized(this ref ValueListBuilder<int> valueListBuilder, ref byte input, int length, byte value0, byte value1) {
+        internal static unsafe int BuildValueListVectorized(this ref ArrayPoolList<int> valueListBuilder, ref byte input, int length, byte value0, byte value1) {
             var index = ((nuint)0);
 
             if ((15 < length) && (((int)index) < length)) {
@@ -535,7 +535,7 @@ namespace ByteTerrace.Ouroboros.Core
                         while (0 != mask) {
                             var m = BitOperations.TrailingZeroCount(mask);
 
-                            valueListBuilder.Append(((int)index) + m);
+                            valueListBuilder.Add(((int)index) + m);
                             mask &= (mask - 1);
                         }
 
@@ -555,7 +555,7 @@ namespace ByteTerrace.Ouroboros.Core
                             while (0 != mask) {
                                 var m = BitOperations.TrailingZeroCount(mask);
 
-                                valueListBuilder.Append(((int)index) + m);
+                                valueListBuilder.Add(((int)index) + m);
                                 mask &= (mask - 1);
                             }
 
@@ -578,7 +578,7 @@ namespace ByteTerrace.Ouroboros.Core
                             while (0 != mask) {
                                 var m = BitOperations.TrailingZeroCount(mask);
 
-                                valueListBuilder.Append(((int)index) + m);
+                                valueListBuilder.Add(((int)index) + m);
                                 mask &= (mask - 1);
                             }
 
@@ -591,7 +591,7 @@ namespace ByteTerrace.Ouroboros.Core
 
             return ((int)index);
         }
-        internal static unsafe int BuildValueListVectorized(this ref ValueListBuilder<int> valueListBuilder, ref char input, int length, char value) {
+        internal static unsafe int BuildValueListVectorized(this ref ArrayPoolList<int> valueListBuilder, ref char input, int length, char value) {
             var index = ((nint)0);
 
             if ((7 < length) && (index < length)) {
@@ -606,7 +606,7 @@ namespace ByteTerrace.Ouroboros.Core
                         while (0 != mask) {
                             var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
 
-                            valueListBuilder.Append(((int)index) + m);
+                            valueListBuilder.Add(((int)index) + m);
                             mask &= (mask - 1);
                             mask &= (mask - 1);
                         }
@@ -625,7 +625,7 @@ namespace ByteTerrace.Ouroboros.Core
                             while (0 != mask) {
                                 var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
 
-                                valueListBuilder.Append(((int)index) + m);
+                                valueListBuilder.Add(((int)index) + m);
                                 mask &= (mask - 1);
                                 mask &= (mask - 1);
                             }
@@ -647,7 +647,7 @@ namespace ByteTerrace.Ouroboros.Core
                             while (0 != mask) {
                                 var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
 
-                                valueListBuilder.Append(((int)index) + m);
+                                valueListBuilder.Add(((int)index) + m);
                                 mask &= (mask - 1);
                                 mask &= (mask - 1);
                             }
@@ -661,7 +661,7 @@ namespace ByteTerrace.Ouroboros.Core
 
             return ((int)index);
         }
-        internal static unsafe int BuildValueListVectorized(this ref ValueListBuilder<int> valueListBuilder, ref char input, int length, char value0, char value1) {
+        internal static unsafe int BuildValueListVectorized(this ref ArrayPoolList<int> valueListBuilder, ref char input, int length, char value0, char value1) {
             var index = ((nint)0);
 
             if ((7 < length) && (index < length)) {
@@ -677,7 +677,7 @@ namespace ByteTerrace.Ouroboros.Core
                         while (0 != mask) {
                             var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
 
-                            valueListBuilder.Append(((int)index) + m);
+                            valueListBuilder.Add(((int)index) + m);
                             mask &= (mask - 1);
                             mask &= (mask - 1);
                         }
@@ -698,7 +698,7 @@ namespace ByteTerrace.Ouroboros.Core
                             while (0 != mask) {
                                 var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
 
-                                valueListBuilder.Append(((int)index) + m);
+                                valueListBuilder.Add(((int)index) + m);
                                 mask &= (mask - 1);
                                 mask &= (mask - 1);
                             }
@@ -722,7 +722,7 @@ namespace ByteTerrace.Ouroboros.Core
                             while (0 != mask) {
                                 var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
 
-                                valueListBuilder.Append(((int)index) + m);
+                                valueListBuilder.Add(((int)index) + m);
                                 mask &= (mask - 1);
                                 mask &= (mask - 1);
                             }
@@ -736,7 +736,7 @@ namespace ByteTerrace.Ouroboros.Core
 
             return ((int)index);
         }
-        internal static unsafe int BuildValueListVectorized(this ref ValueListBuilder<int> valueListBuilder, ref char input, int length, char value0, char value1, char value2) {
+        internal static unsafe int BuildValueListVectorized(this ref ArrayPoolList<int> valueListBuilder, ref char input, int length, char value0, char value1, char value2) {
             var index = ((nint)0);
 
             if ((7 < length) && (index < length)) {
@@ -753,7 +753,7 @@ namespace ByteTerrace.Ouroboros.Core
                         while (0 != mask) {
                             var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
 
-                            valueListBuilder.Append(((int)index) + m);
+                            valueListBuilder.Add(((int)index) + m);
                             mask &= (mask - 1);
                             mask &= (mask - 1);
                         }
@@ -775,7 +775,7 @@ namespace ByteTerrace.Ouroboros.Core
                             while (0 != mask) {
                                 var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
 
-                                valueListBuilder.Append(((int)index) + m);
+                                valueListBuilder.Add(((int)index) + m);
                                 mask &= (mask - 1);
                                 mask &= (mask - 1);
                             }
@@ -800,7 +800,7 @@ namespace ByteTerrace.Ouroboros.Core
                             while (0 != mask) {
                                 var m = ((int)(((uint)BitOperations.TrailingZeroCount(mask)) >> 1));
 
-                                valueListBuilder.Append(((int)index) + m);
+                                valueListBuilder.Add(((int)index) + m);
                                 mask &= (mask - 1);
                                 mask &= (mask - 1);
                             }
@@ -814,21 +814,21 @@ namespace ByteTerrace.Ouroboros.Core
 
             return ((int)index);
         }
-        internal static unsafe void InitializeValueListVectorized(this ref ValueListBuilder<uint> valueListBuilder, ref byte input, int length, byte delimiter, byte escapeSentinel) {
+        internal static unsafe int InitializeArrayPoolList(this ref ArrayPoolList<uint> valueListBuilder, ref byte input, int length, byte value0, byte value1) {
             var index = ((nuint)0);
 
             if ((15 < length) && (index < ((nuint)length))) {
                 if (Avx2.IsSupported) {
                     if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
                         var searchVector = LoadVector128(ref input, index);
-                        var delimiterVectorMask = ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(delimiter), searchVector)));
-                        var combinedMask = (delimiterVectorMask | ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(escapeSentinel), searchVector))));
+                        var delimiterVectorMask = ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value0), searchVector)));
+                        var combinedMask = (delimiterVectorMask | ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value1), searchVector))));
 
                         while (0 != combinedMask) {
                             var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
                             var isDelimiter = BitHelper.HasFlag(delimiterVectorMask, combinedIndex);
 
-                            valueListBuilder.Append(((uint)(index + ((uint)combinedIndex))) | ((uint)((isDelimiter.ToByte()) << 31)));
+                            valueListBuilder.Add(((uint)(index + ((uint)combinedIndex))) | ((uint)((isDelimiter.ToByte()) << 31)));
                             combinedMask &= (combinedMask - 1);
                         }
 
@@ -838,8 +838,8 @@ namespace ByteTerrace.Ouroboros.Core
                     var lengthToExamine = GetByteVector256SpanLength(index, length);
 
                     if (31 < lengthToExamine) {
-                        var delimiterVector = Vector256.Create(delimiter);
-                        var escapeSentinelVector = Vector256.Create(escapeSentinel);
+                        var delimiterVector = Vector256.Create(value0);
+                        var escapeSentinelVector = Vector256.Create(value1);
 
                         do {
                             var searchVector = LoadVector256(ref input, index);
@@ -850,7 +850,7 @@ namespace ByteTerrace.Ouroboros.Core
                                 var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
                                 var isDelimiter = BitHelper.HasFlag(delimiterVectorMask, combinedIndex);
 
-                                valueListBuilder.Append(((uint)(index + ((uint)combinedIndex))) | ((uint)((isDelimiter.ToByte()) << 31)));
+                                valueListBuilder.Add(((uint)(index + ((uint)combinedIndex))) | ((uint)((isDelimiter.ToByte()) << 31)));
                                 combinedMask &= (combinedMask - 1);
                             }
 
@@ -863,6 +863,21 @@ namespace ByteTerrace.Ouroboros.Core
                     throw new NotSupportedException();
                 }
             }
+
+            while (index < ((nuint)length)) {
+                var b = Unsafe.AddByteOffset(ref input, index);
+
+                if (value0 == b) {
+                    valueListBuilder.Add(((uint)index) | (1U << 31));
+                }
+                else if (value1 == b) {
+                    valueListBuilder.Add((uint)index);
+                }
+
+                ++index;
+            }
+
+            return valueListBuilder.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -935,7 +950,7 @@ namespace ByteTerrace.Ouroboros.Core
             );
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int[] IndicesOf(this ReadOnlySpan<byte> span, byte value) {
-            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+            var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
 
             return BuildValueList(
                     input: ref span.DangerousGetReference(),
@@ -950,7 +965,7 @@ namespace ByteTerrace.Ouroboros.Core
             ((ReadOnlySpan<byte>)span).IndicesOf(value: value);
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int[] IndicesOf(this ReadOnlySpan<char> span, char value) {
-            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+            var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
 
             return BuildValueList(
                     input: ref span.DangerousGetReference(),
@@ -965,7 +980,7 @@ namespace ByteTerrace.Ouroboros.Core
             ((ReadOnlySpan<char>)span).IndicesOf(value);
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int[] IndicesOf(this ReadOnlySpan<char> span, char value0, char value1) {
-            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+            var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
 
             return BuildValueList(
                     input: ref span.DangerousGetReference(),

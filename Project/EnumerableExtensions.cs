@@ -55,7 +55,7 @@ namespace ByteTerrace.Ouroboros.Core
             byte delimiter = FieldSeparator
         ) {
             foreach (var yChunk in source) {
-                var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+                var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
                 var xIndices = valueListBuilder.BuildValueList(ref yChunk.Span.DangerousGetReference(), yChunk.Length, delimiter);
                 var loopLimit = xIndices.Length;
                 var previousIndex = 0;
@@ -94,7 +94,7 @@ namespace ByteTerrace.Ouroboros.Core
             char delimiter = ','
         ) {
             foreach (var yChunk in source) {
-                var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+                var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
                 var xIndices = valueListBuilder.BuildValueList(ref yChunk.Span.DangerousGetReference(), yChunk.Length, delimiter);
                 var loopLimit = xIndices.Length;
                 var previousIndex = 0;

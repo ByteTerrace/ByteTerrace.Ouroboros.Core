@@ -1,7 +1,6 @@
 ﻿using Microsoft.Toolkit.HighPerformance;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics.X86;
 
 namespace ByteTerrace.Ouroboros.Core
 {
@@ -43,80 +42,100 @@ namespace ByteTerrace.Ouroboros.Core
             return result.AsMemory();
         }
 
-        internal static ReadOnlyMemory<ReadOnlyMemory<byte>> DelimitCore<T>(this ReadOnlyMemory<T> input, byte delimiter, byte escapeSentinel, bool isNullTerminated) where T : unmanaged {
-            var inputBytes = input.AsBytes();
+        [SkipLocalsInit]
+        public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
+            var controlIndices = new ArrayPoolList<uint>(stackalloc uint[256]);
             var length = input.Length;
-            var valueListBuilder = new ValueListBuilder<uint>(new uint[128]);
-
-            if (Sse2.IsSupported || Avx2.IsSupported) {
-                valueListBuilder.InitializeValueListVectorized(ref inputBytes.Span.DangerousGetReference(), length, delimiter, escapeSentinel);
-            }
-
-            var loopLimit = valueListBuilder.Length;
+            var loopLimit = controlIndices.InitializeArrayPoolList(
+                input: ref input.Span.AsBytes().DangerousGetReference(),
+                length: (length << 1),
+                value0: ((byte)delimiter),
+                value1: ((byte)escapeSentinel)
+            );
 
             if (0 < loopLimit) {
                 var beginIndex = 0;
-                var increment = (1 + isNullTerminated.ToByte());
+                var isEscaping = false;
                 var loopIndex = 0;
-                var stringBuilder = ReadOnlyMemory<byte>.Empty;
-                var result = new ReadOnlyMemory<byte>[loopLimit];
+                var stringBuilder = ReadOnlyMemory<char>.Empty;
+                var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
                 var resultIndex = 0;
 
                 do {
-                    var endIndexFlags = valueListBuilder[loopIndex];
-                    var endIndex = ((int)(endIndexFlags & 0b01111111111111111111111111111111));
+                    var endIndexFlags = controlIndices[loopIndex];
+                    var endIndex = ((int)((endIndexFlags & 0b01111111111111111111111111111111) >> 1/* divide index by two; byte -> char */));
 
-                    if (0 != (endIndexFlags & 0b10000000000000000000000000000000)) {
-                        if (beginIndex == endIndex) {
-                            result[resultIndex] = stringBuilder;
+                    if (0 != (endIndexFlags & 0b10000000000000000000000000000000)) { // isDelimiter
+                        if (!isEscaping) {
+                            if (beginIndex == endIndex) {
+                                if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
+                                    result[resultIndex] = stringBuilder;
+                                }
+                            }
+                            else {
+                                result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
+                            }
+
+                            resultIndex++;
+                            stringBuilder = ReadOnlyMemory<char>.Empty;
                         }
                         else {
-                            result[resultIndex] = stringBuilder.Concat(inputBytes[beginIndex..endIndex]);
-                        }
-
-                        stringBuilder = ReadOnlyMemory<byte>.Empty;
-
-                        resultIndex++;
-                    }
-                    else if (beginIndex < endIndex) {
-                        if (stringBuilder.IsEmpty) {
-                            stringBuilder = inputBytes[beginIndex..endIndex];
-                        }
-                        else {
-                            stringBuilder = stringBuilder.Concat(inputBytes[beginIndex..endIndex]);
+                            if (stringBuilder.IsEmpty) {
+                                stringBuilder = input[beginIndex..(endIndex + 1)];
+                            }
+                            else {
+                                stringBuilder = stringBuilder.Concat(input[beginIndex..(endIndex + 1)]);
+                            }
                         }
                     }
+                    else { // isEscapeSentinel
+                        if (beginIndex < endIndex) {
+                            if (stringBuilder.IsEmpty) {
+                                stringBuilder = input[beginIndex..endIndex];
+                            }
+                            else {
+                                stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
+                            }
+                        }
+                        else if (isEscaping && (0 == (controlIndices[(loopIndex - 1)] & 0b10000000000000000000000000000000))) { // isEscapeSentinelLiteral
+                            if (stringBuilder.IsEmpty) {
+                                stringBuilder = input.Slice(endIndex, 1);
+                            }
+                            else {
+                                stringBuilder = stringBuilder.Concat(input.Slice(endIndex, 1));
+                            }
+                        }
 
-                    beginIndex = (endIndex + increment);
+                        beginIndex = (endIndex + 1);
+                        isEscaping = !isEscaping;
+                    }
+
+                    beginIndex = (endIndex + 1);
                 } while (++loopIndex < loopLimit);
 
                 if (beginIndex < length) {
                     if (stringBuilder.IsEmpty) {
-                        result[resultIndex] = inputBytes[beginIndex..];
+                        stringBuilder = input[beginIndex..];
                     }
                     else {
-                        result[resultIndex] = stringBuilder.Concat(inputBytes[beginIndex..]);
+                        stringBuilder = stringBuilder.Concat(input[beginIndex..]);
                     }
                 }
-                else if (!stringBuilder.IsEmpty && (1 != stringBuilder.Length || escapeSentinel != stringBuilder.Span[0])) {
+
+                if (!(stringBuilder.IsEmpty || (1 == stringBuilder.Length) && (escapeSentinel == stringBuilder.Span[0]))) {
                     result[resultIndex] = stringBuilder;
                 }
 
-                valueListBuilder.Dispose();
+                controlIndices.Dispose();
 
                 return result.AsMemory()[..(resultIndex + 1)];
             }
             else {
-                valueListBuilder.Dispose();
+                controlIndices.Dispose();
 
-                return new ReadOnlyMemory<byte>[1] { input.AsBytes(), }.AsMemory();
+                return new ReadOnlyMemory<char>[1] { input, }.AsMemory();
             }
         }
-
-        public static ReadOnlyMemory<ReadOnlyMemory<byte>> Delimit(this ReadOnlyMemory<byte> input, byte delimiter, byte escapeSentinel) =>
-            input.DelimitCore(delimiter: delimiter, escapeSentinel: escapeSentinel, isNullTerminated: false);
-        public static ReadOnlyMemory<ReadOnlyMemory<byte>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) =>
-            input.AsBytes().DelimitCore(delimiter: ((byte)delimiter), escapeSentinel: ((byte)escapeSentinel), isNullTerminated: true);
 
         /// <summary>
         /// Delimits a contiguous region of memory based on the specified delimiter character.
@@ -126,7 +145,7 @@ namespace ByteTerrace.Ouroboros.Core
         /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character.</returns>
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter) {
             var length = input.Length;
-            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+            var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
             var delimiterIndices = valueListBuilder.BuildValueList(ref input.Span.DangerousGetReference(), length, delimiter);
             var beginIndex = 0;
             var loopLimit = delimiterIndices.Length;
@@ -161,7 +180,7 @@ namespace ByteTerrace.Ouroboros.Core
         public static ReadOnlyMemory<ReadOnlyMemory<char>> DelimitLines(this ReadOnlyMemory<char> input, char escapeSentinel, ref bool isEscaping, out int numCharsRead) {
             var length = input.Length;
             var span = input.Span;
-            var valueListBuilder = new ValueListBuilder<int>(stackalloc int[64]);
+            var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
             var delimiterIndices = valueListBuilder.BuildValueList(ref span.DangerousGetReference(), length, '\n', '\r', escapeSentinel);
             var beginIndex = 0;
             var loopLimit = delimiterIndices.Length;
