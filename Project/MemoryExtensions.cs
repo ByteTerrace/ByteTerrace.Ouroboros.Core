@@ -73,6 +73,9 @@ namespace ByteTerrace.Ouroboros.Core
                                     result[resultIndex] = stringBuilder;
                                 }
                             }
+                            else if (stringBuilder.IsEmpty) {
+                                result[resultIndex] = input[beginIndex..endIndex];
+                            }
                             else {
                                 result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
                             }
