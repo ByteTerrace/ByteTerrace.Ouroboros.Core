@@ -17,28 +17,21 @@ namespace ByteTerrace.Ouroboros.Core
         /// <returns>A new contiguous region of memory that contains the combined inputs.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlyMemory<T> Concat<T>(this ReadOnlyMemory<T> input, ReadOnlyMemory<T> other) {
-            var result = new T[(input.Length + other.Length)].AsMemory();
+            if (input.IsEmpty) {
+                return other;
+            }
+
+            if (other.IsEmpty) {
+                return input;
+            }
+
+            var inputLength = input.Length;
+            var result = new T[(inputLength + other.Length)].AsMemory();
 
             input.CopyTo(result);
-            other.CopyTo(result[input.Length..]);
+            other.CopyTo(result[inputLength..]);
 
             return result;
-        }
-        /// <summary>
-        /// Concatenates two contiguous regions of memory.
-        /// </summary>
-        /// <typeparam name="T">The type of inputs that will be concatenated.</typeparam>
-        /// <param name="input">The first input.</param>
-        /// <param name="other">The second input.</param>
-        /// <returns>A new contiguous region of memory that contains the combined inputs.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlyMemory<T> Concat<T>(this ReadOnlyMemory<T> input, ReadOnlySpan<T> other) {
-            var result = new T[(input.Length + other.Length)];
-
-            input.CopyTo(result.AsMemory());
-            other.CopyTo(result.AsSpan()[input.Length..]);
-
-            return result.AsMemory();
         }
         /// <summary>
         /// Delimits a contiguous region of memory based on the specified delimiter and escape sentinel characters.
@@ -78,9 +71,6 @@ namespace ByteTerrace.Ouroboros.Core
                                     result[resultIndex] = stringBuilder;
                                 }
                             }
-                            else if (stringBuilder.IsEmpty) {
-                                result[resultIndex] = input[beginIndex..endIndex];
-                            }
                             else {
                                 result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
                             }
@@ -92,30 +82,15 @@ namespace ByteTerrace.Ouroboros.Core
                             stringBuilder = ReadOnlyMemory<char>.Empty;
                         }
                         else { // isStringSegment
-                            if (stringBuilder.IsEmpty) {
-                                stringBuilder = input[beginIndex..(endIndex + 1)];
-                            }
-                            else {
-                                stringBuilder = stringBuilder.Concat(input[beginIndex..(endIndex + 1)]);
-                            }
+                            stringBuilder = stringBuilder.Concat(input[beginIndex..(endIndex + 1)]);
                         }
                     }
                     else { // isEscapeSentinel
                         if (beginIndex < endIndex) { // isStringSegment
-                            if (stringBuilder.IsEmpty) {
-                                stringBuilder = input[beginIndex..endIndex];
-                            }
-                            else {
-                                stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
-                            }
+                            stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
                         }
                         else if (isEscaping && (0 == (controlIndices[(loopIndex - 1)] & 0b10000000000000000000000000000000))) { // isEscapeSentinelLiteral
-                            if (stringBuilder.IsEmpty) {
-                                stringBuilder = input.Slice(endIndex, 1);
-                            }
-                            else {
-                                stringBuilder = stringBuilder.Concat(input.Slice(endIndex, 1));
-                            }
+                            stringBuilder = stringBuilder.Concat(input.Slice(endIndex, 1));
                         }
 
                         isEscaping = !isEscaping;
@@ -125,12 +100,7 @@ namespace ByteTerrace.Ouroboros.Core
                 } while (++loopIndex < loopLimit);
 
                 if (beginIndex < length) {
-                    if (stringBuilder.IsEmpty) {
-                        stringBuilder = input[beginIndex..];
-                    }
-                    else {
-                        stringBuilder = stringBuilder.Concat(input[beginIndex..]);
-                    }
+                    stringBuilder = stringBuilder.Concat(input[beginIndex..]);
                 }
 
                 if (!(stringBuilder.IsEmpty || (1 == stringBuilder.Length) && (escapeSentinel == stringBuilder.Span[0]))) {
@@ -146,38 +116,6 @@ namespace ByteTerrace.Ouroboros.Core
 
                 return new ReadOnlyMemory<char>[1] { input, }.AsMemory();
             }
-        }
-        /// <summary>
-        /// Delimits a contiguous region of memory based on the specified delimiter character.
-        /// </summary>
-        /// <param name="input">The region of memory that will be delimited.</param>
-        /// <param name="delimiter">A character that delimits regions within this input.</param>
-        /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character.</returns>
-        public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter) {
-            var length = input.Length;
-            var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
-            var delimiterIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(input.Span), length, delimiter);
-            var beginIndex = 0;
-            var loopLimit = delimiterIndices.Length;
-            var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
-            var resultIndex = 0;
-
-            for (var loopIndex = 0; ((loopIndex < loopLimit) && (beginIndex < length)); ++loopIndex) {
-                var endIndex = delimiterIndices[loopIndex];
-
-                result[resultIndex++] = input[beginIndex..endIndex];
-                beginIndex = (endIndex + 1);
-            }
-
-            var finalSegment = (((beginIndex < length) && (0 <= loopLimit)) ? input[beginIndex..] : ReadOnlyMemory<char>.Empty);
-
-            if (!finalSegment.IsEmpty) {
-                result[resultIndex] = finalSegment;
-            }
-
-            valueListBuilder.Dispose();
-
-            return result.AsMemory()[..(resultIndex + 1)];
         }
         /// <summary>
         /// 
