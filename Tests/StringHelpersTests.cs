@@ -37,10 +37,24 @@ namespace ByteTerrace.Ouroboros.Core.Tests
                 var length = value.Length;
                 var result = kvp.Key.AsMemory().Delimit(',', '"');
 
-                Assert.AreEqual(length, result.Length);
+                Assert.AreEqual(
+                    actual: result.Length,
+                    expected: length,
+                    message: $@"
+Error: Field count mismatch.
+Key: {kvp.Key}"
+                );
 
                 for (var i = 0; (i < length); ++i) {
-                    Assert.IsTrue(value.Span[0].Span.SequenceEqual(result.Span[0].Span));
+                    Assert.IsTrue(
+                        condition: value.Span[i].Span.SequenceEqual(result.Span[i].Span),
+                        message: $@"
+Error: Field value mismatch.
+Key: {kvp.Key}
+Index: {i}
+Actual: {result.Span[i].Span}
+Expected: {value.Span[i].Span}"
+                    );
                 }
             }
         }
