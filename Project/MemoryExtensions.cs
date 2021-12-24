@@ -1,5 +1,4 @@
-﻿using Microsoft.Toolkit.HighPerformance;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace ByteTerrace.Ouroboros.Core
@@ -41,13 +40,19 @@ namespace ByteTerrace.Ouroboros.Core
 
             return result.AsMemory();
         }
-
+        /// <summary>
+        /// Delimits a contiguous region of memory based on the specified delimiter and escape sentinel characters.
+        /// </summary>
+        /// <param name="input">The region of memory that will be delimited.</param>
+        /// <param name="delimiter">A character that delimits regions within this input.</param>
+        /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped subregion.</param>
+        /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
         [SkipLocalsInit]
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
             var controlIndices = new ArrayPoolList<uint>(stackalloc uint[256]);
             var length = input.Length;
             var loopLimit = controlIndices.BuildIndicesList(
-                input: ref input.Span.DangerousGetReference(),
+                input: ref MemoryMarshal.GetReference(input.Span),
                 length: length,
                 value0: delimiter,
                 value1: escapeSentinel
@@ -86,7 +91,7 @@ namespace ByteTerrace.Ouroboros.Core
 
                             stringBuilder = ReadOnlyMemory<char>.Empty;
                         }
-                        else { // isEscapedDelimiter
+                        else { // isStringSegment
                             if (stringBuilder.IsEmpty) {
                                 stringBuilder = input[beginIndex..(endIndex + 1)];
                             }
@@ -142,7 +147,6 @@ namespace ByteTerrace.Ouroboros.Core
                 return new ReadOnlyMemory<char>[1] { input, }.AsMemory();
             }
         }
-
         /// <summary>
         /// Delimits a contiguous region of memory based on the specified delimiter character.
         /// </summary>
@@ -152,7 +156,7 @@ namespace ByteTerrace.Ouroboros.Core
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter) {
             var length = input.Length;
             var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
-            var delimiterIndices = valueListBuilder.BuildValueList(ref input.Span.DangerousGetReference(), length, delimiter);
+            var delimiterIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(input.Span), length, delimiter);
             var beginIndex = 0;
             var loopLimit = delimiterIndices.Length;
             var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
@@ -187,7 +191,7 @@ namespace ByteTerrace.Ouroboros.Core
             var length = input.Length;
             var span = input.Span;
             var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
-            var delimiterIndices = valueListBuilder.BuildValueList(ref span.DangerousGetReference(), length, '\n', '\r', escapeSentinel);
+            var delimiterIndices = valueListBuilder.BuildValueList(ref MemoryMarshal.GetReference(span), length, '\n', '\r', escapeSentinel);
             var beginIndex = 0;
             var loopLimit = delimiterIndices.Length;
             var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
