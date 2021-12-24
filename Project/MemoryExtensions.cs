@@ -47,10 +47,10 @@ namespace ByteTerrace.Ouroboros.Core
             var controlIndices = new ArrayPoolList<uint>(stackalloc uint[256]);
             var length = input.Length;
             var loopLimit = controlIndices.BuildIndicesList(
-                input: ref input.Span.AsBytes().DangerousGetReference(),
-                length: (length << 1),
-                value0: ((byte)delimiter),
-                value1: ((byte)escapeSentinel)
+                input: ref input.Span.DangerousGetReference(),
+                length: length,
+                value0: delimiter,
+                value1: escapeSentinel
             );
 
             if (0 < loopLimit) {
@@ -62,11 +62,10 @@ namespace ByteTerrace.Ouroboros.Core
                 var resultIndex = 0;
 
                 do {
-                    var controlIndex = controlIndices[loopIndex];
-                    var endIndex = ((int)(controlIndex >> 1)); // divide index by two; byte -> char
+                    var endIndex = ((int)controlIndices[loopIndex]);
 
-                    if (0 != (controlIndex & 0b10000000000000000000000000000000)) { // isDelimiter
-                        endIndex &= 0b00111111111111111111111111111111;
+                    if (0 != (endIndex & 0b10000000000000000000000000000000)) { // isDelimiter
+                        endIndex &= 0b01111111111111111111111111111111;
 
                         if (!isEscaping) { // isEndOfString
                             if (beginIndex == endIndex) {

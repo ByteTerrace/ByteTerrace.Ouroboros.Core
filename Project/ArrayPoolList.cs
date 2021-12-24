@@ -23,9 +23,9 @@ namespace ByteTerrace.Ouroboros.Core
         public ReadOnlySpan<T> WrittenSpan {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get {
-                var array = m_array;
+                var span = m_span;
 
-                return array!.AsSpan(0, m_index);
+                return span.Slice(0, m_index);
             }
         }
 

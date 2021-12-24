@@ -453,6 +453,75 @@ namespace ByteTerrace.Ouroboros.Core
 
             return arrayPoolList.Length;
         }
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [SkipLocalsInit]
+        internal static unsafe int BuildIndicesList(this ref ArrayPoolList<uint> arrayPoolList, ref char input, int length, char value0, char value1) {
+            var index = ((nint)0);
+
+            if (Avx2.IsSupported) {
+                if ((7 < length) && (index < length)) {
+                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
+                        var searchVector = LoadVector128(ref input, index);
+                        var value0VectorMask = ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value0), searchVector).AsByte()));
+                        var combinedMask = (value0VectorMask | ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value1), searchVector).AsByte())));
+
+                        while (0 != combinedMask) {
+                            var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
+                            var isValue0 = BitHelper.HasFlag(value0VectorMask, combinedIndex);
+
+                            arrayPoolList.Add((((uint)index) + (((uint)combinedIndex) >> 1)) | ((uint)((isValue0.ToByte()) << 31)));
+                            combinedMask &= (combinedMask - 1);
+                            combinedMask &= (combinedMask - 1);
+                        }
+
+                        index += 8;
+                    }
+
+                    var lengthToExamine = GetCharVector256SpanLength(index, length);
+
+                    if (15 < lengthToExamine) {
+                        var value0Vector = Vector256.Create(value0);
+                        var value1Vector = Vector256.Create(value1);
+
+                        do {
+                            var searchVector = LoadVector256(ref input, index);
+                            var value0VectorMask = ((uint)Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte()));
+                            var combinedMask = (value0VectorMask | ((uint)Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte())));
+
+                            while (0 != combinedMask) {
+                                var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
+                                var isValue0 = BitHelper.HasFlag(value0VectorMask, combinedIndex);
+
+                                arrayPoolList.Add((((uint)index) + (((uint)combinedIndex) >> 1)) | ((uint)((isValue0.ToByte()) << 31)));
+                                combinedMask &= (combinedMask - 1);
+                                combinedMask &= (combinedMask - 1);
+                            }
+
+                            lengthToExamine -= 16;
+                            index += 16;
+                        } while (15 < lengthToExamine);
+                    }
+                }
+            }
+            else if (Sse2.IsSupported) {
+                throw new NotSupportedException();
+            }
+
+            while (index < length) {
+                ref var b = ref Unsafe.Add(ref input, index);
+
+                if (value0 == b) {
+                    arrayPoolList.Add(((uint)index) | (1U << 31));
+                }
+                else if (value1 == b) {
+                    arrayPoolList.Add((uint)index);
+                }
+
+                ++index;
+            }
+
+            return arrayPoolList.Length;
+        }
         internal static ReadOnlySpan<int> BuildValueList(this ref ArrayPoolList<int> valueListBuilder, ref byte input, int length, byte value) {
             var index = 0;
 
