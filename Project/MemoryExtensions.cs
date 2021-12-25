@@ -54,11 +54,11 @@ namespace ByteTerrace.Ouroboros.Core
             if (0 < loopLimit) {
                 var beginIndex = 0;
                 var endIndex = 0;
+                var escapeSentinelRunLength = 0;
                 var loopIndex = 0;
                 var stringBuilder = ReadOnlyMemory<char>.Empty;
                 var result = new ReadOnlyMemory<char>[32];
                 var resultIndex = 0;
-                var runCount = 0;
 
                 do {
                     endIndex = ((int)controlIndices[loopIndex++]);
@@ -70,13 +70,15 @@ namespace ByteTerrace.Ouroboros.Core
                             result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
                         }
                         else {
+                            ++beginIndex;
+
                             if (beginIndex == endIndex) {
                                 if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
                                     result[resultIndex] = stringBuilder;
                                 }
                             }
                             else {
-                                result[resultIndex] = stringBuilder.Concat(input[(beginIndex + 1)..endIndex]);
+                                result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
                             }
                         }
 
@@ -85,37 +87,34 @@ namespace ByteTerrace.Ouroboros.Core
                         }
 
                         beginIndex = (endIndex + 1);
-                        runCount = 0;
                         stringBuilder = ReadOnlyMemory<char>.Empty;
                     }
                     else { // isEscapeSentinel
                         endIndex &= 0b01111111111111111111111111111111;
-                        ++runCount;
 
                         if (loopIndex < loopLimit) {
-                            var nextIndex = ((int)controlIndices[loopIndex]);
-                            var nextIndexIsDelimiter = (0 != (nextIndex & 0b10000000000000000000000000000000));
+                            ++escapeSentinelRunLength;
 
-                            if (nextIndexIsDelimiter) {
-                                if (1 == (runCount & 1)) {
+                            if (0 != (controlIndices[loopIndex] & 0b10000000000000000000000000000000)) { // isDelimiter
+                                if (1 == (escapeSentinelRunLength & 1)) {
                                     ++loopIndex;
                                 }
                                 else if (1 != (endIndex - beginIndex)) {
                                     ++beginIndex;
                                 }
                             }
-                            else if (0 == (runCount & 1)) {
-                                if (1 != (endIndex - beginIndex)) {
+                            else if (0 == (escapeSentinelRunLength & 1)) {
+                                if (1 != (endIndex - beginIndex)) { // isStringSegment
                                     ++beginIndex;
                                 }
-                                else {
+                                else { // isEscapeSentinelLiteral
                                     beginIndex = endIndex;
-                                    endIndex++;
+                                    ++endIndex;
                                     ++loopIndex;
                                 }
                             }
                         }
-                        else if ((2 != (length - beginIndex)) || (1 != (length - endIndex))) {
+                        else if ((2 != (length - beginIndex)) || (1 != (length - endIndex))) { // isStringSegment
                             ++beginIndex;
                         }
 
@@ -126,15 +125,10 @@ namespace ByteTerrace.Ouroboros.Core
                     }
                 } while (loopIndex < loopLimit);
 
-                if (1 < (length - endIndex)) {
-                    endIndex = length;
+                if ((beginIndex < endIndex) || (1 < (length - endIndex))) {
+                    result[resultIndex] = stringBuilder.Concat(input[beginIndex..]);
                 }
-
-                if (beginIndex < endIndex) {
-                    stringBuilder = stringBuilder.Concat(input[beginIndex..]);
-                }
-
-                if (!stringBuilder.IsEmpty) {
+                else if (!stringBuilder.IsEmpty) {
                     result[resultIndex] = stringBuilder;
                 }
 
