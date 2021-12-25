@@ -53,57 +53,88 @@ namespace ByteTerrace.Ouroboros.Core
 
             if (0 < loopLimit) {
                 var beginIndex = 0;
-                var isEscaping = false;
+                var endIndex = 0;
                 var loopIndex = 0;
                 var stringBuilder = ReadOnlyMemory<char>.Empty;
                 var result = new ReadOnlyMemory<char>[32];
                 var resultIndex = 0;
+                var runCount = 0;
 
                 do {
-                    var endIndex = ((int)controlIndices[loopIndex]);
+                    endIndex = ((int)controlIndices[loopIndex++]);
 
                     if (0 != (endIndex & 0b10000000000000000000000000000000)) { // isDelimiter
                         endIndex &= 0b01111111111111111111111111111111;
 
-                        if (!isEscaping) { // isEndOfString
+                        if (stringBuilder.IsEmpty) {
+                            result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
+                        }
+                        else {
                             if (beginIndex == endIndex) {
                                 if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
                                     result[resultIndex] = stringBuilder;
                                 }
                             }
                             else {
-                                result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
+                                result[resultIndex] = stringBuilder.Concat(input[(beginIndex + 1)..endIndex]);
                             }
-
-                            if (++resultIndex == result.Length) {
-                                Array.Resize(ref result, newSize: (result.Length << 1));
-                            }
-
-                            stringBuilder = ReadOnlyMemory<char>.Empty;
                         }
-                        else { // isStringSegment
-                            stringBuilder = stringBuilder.Concat(input[beginIndex..(endIndex + 1)]);
+
+                        if (++resultIndex == result.Length) {
+                            Array.Resize(ref result, newSize: (result.Length << 1));
                         }
+
+                        beginIndex = (endIndex + 1);
+                        runCount = 0;
+                        stringBuilder = ReadOnlyMemory<char>.Empty;
                     }
                     else { // isEscapeSentinel
-                        if (beginIndex < endIndex) { // isStringSegment
+                        endIndex &= 0b01111111111111111111111111111111;
+                        ++runCount;
+
+                        if (loopIndex < loopLimit) {
+                            var nextIndex = ((int)controlIndices[loopIndex]);
+                            var nextIndexIsDelimiter = (0 != (nextIndex & 0b10000000000000000000000000000000));
+
+                            if (nextIndexIsDelimiter) {
+                                if (1 == (runCount & 1)) {
+                                    ++loopIndex;
+                                }
+                                else if (1 != (endIndex - beginIndex)) {
+                                    ++beginIndex;
+                                }
+                            }
+                            else if (0 == (runCount & 1)) {
+                                if (1 != (endIndex - beginIndex)) {
+                                    ++beginIndex;
+                                }
+                                else {
+                                    beginIndex = endIndex;
+                                    endIndex++;
+                                    ++loopIndex;
+                                }
+                            }
+                        }
+                        else if ((2 != (length - beginIndex)) || (1 != (length - endIndex))) {
+                            ++beginIndex;
+                        }
+
+                        if (beginIndex < endIndex) {
                             stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
+                            beginIndex = endIndex;
                         }
-                        else if (isEscaping && (0 == (controlIndices[(loopIndex - 1)] & 0b10000000000000000000000000000000))) { // isEscapeSentinelLiteral
-                            stringBuilder = stringBuilder.Concat(input.Slice(endIndex, 1));
-                        }
-
-                        isEscaping = !isEscaping;
                     }
+                } while (loopIndex < loopLimit);
 
-                    beginIndex = (endIndex + 1);
-                } while (++loopIndex < loopLimit);
+                if (1 < (length - endIndex)) {
+                    endIndex = length;
+                }
 
-                if (beginIndex < length) {
+                if (beginIndex < endIndex) {
                     stringBuilder = stringBuilder.Concat(input[beginIndex..]);
                 }
 
-                if (!(stringBuilder.IsEmpty || (1 == stringBuilder.Length) && (escapeSentinel == stringBuilder.Span[0]))) {
+                if (!stringBuilder.IsEmpty) {
                     result[resultIndex] = stringBuilder;
                 }
 

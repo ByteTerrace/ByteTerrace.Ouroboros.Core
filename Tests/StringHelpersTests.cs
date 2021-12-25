@@ -8,26 +8,48 @@ namespace ByteTerrace.Ouroboros.Core.Tests
     [TestClass]
     public class StringHelpersTests
     {
-        private static IDictionary<string, ReadOnlyMemory<ReadOnlyMemory<char>>> KnownCases = new Dictionary<string, ReadOnlyMemory<ReadOnlyMemory<char>>> {
-            [""] = new ReadOnlyMemory<char>[1] { string.Empty.AsMemory(), },
-            [","] = new ReadOnlyMemory<char>[2] { string.Empty.AsMemory(), string.Empty.AsMemory(), },
-            [",,"] = new ReadOnlyMemory<char>[3] { string.Empty.AsMemory(), string.Empty.AsMemory(), string.Empty.AsMemory(), },
-            [",,,"] = new ReadOnlyMemory<char>[4] { string.Empty.AsMemory(), string.Empty.AsMemory(), string.Empty.AsMemory(), string.Empty.AsMemory(), },
-            ["\""] = new ReadOnlyMemory<char>[1] { string.Empty.AsMemory(), },
-            ["\"\""] = new ReadOnlyMemory<char>[1] { string.Empty.AsMemory(), },
-            ["\"\"\"\""] = new ReadOnlyMemory<char>[1] { "\"\"".AsMemory(), },
-            ["\"\"\"\"\"\""] = new ReadOnlyMemory<char>[1] { "\"\"\"".AsMemory(), },
-            ["\"\",\"\""] = new ReadOnlyMemory<char>[2] { string.Empty.AsMemory(), string.Empty.AsMemory(), },
-            ["\"\",\"\",\"\""] = new ReadOnlyMemory<char>[3] { string.Empty.AsMemory(), string.Empty.AsMemory(), string.Empty.AsMemory(), },
-            ["A"] = new ReadOnlyMemory<char>[1] { "A".AsMemory(), },
-            ["A,B"] = new ReadOnlyMemory<char>[2] { "A".AsMemory(), "B".AsMemory(), },
-            ["A,B,C"] = new ReadOnlyMemory<char>[3] { "A".AsMemory(), "B".AsMemory(), "C".AsMemory(), },
-            ["\"A\",\"B\""] = new ReadOnlyMemory<char>[2] { "A".AsMemory(), "B".AsMemory(), },
-            ["\"A\",\"B\",\"C\""] = new ReadOnlyMemory<char>[3] { "A".AsMemory(), "B".AsMemory(), "C".AsMemory(), },
-            ["\"\"A,\"\"B"] = new ReadOnlyMemory<char>[2] { "\"A".AsMemory(), "\"B".AsMemory(), },
-            ["A\"\",B\"\""] = new ReadOnlyMemory<char>[2] { "A\"".AsMemory(), "B\"".AsMemory(), },
-            ["\"\"A,B\"\""] = new ReadOnlyMemory<char>[2] { "\"A".AsMemory(), "B\"".AsMemory(), },
-            ["A\"\",\"\"B"] = new ReadOnlyMemory<char>[2] { "A\"".AsMemory(), "\"B".AsMemory(), },
+        private static IDictionary<string, string[]> KnownCases = new Dictionary<string, string[]> {
+            [""] = new[] { string.Empty, },
+            [","] = new[] { string.Empty, string.Empty, },
+            [",,"] = new[] { string.Empty, string.Empty, string.Empty, },
+            [",,,"] = new[] { string.Empty, string.Empty, string.Empty, string.Empty, },
+            ["\""] = new[] { string.Empty, },
+            //["\"\""] = new[] { string.Empty, },
+            ["\"\"\"\""] = new[] { "\"\"", },
+            ["\"\"\"\"\"\""] = new[] { "\"\"\"", },
+            //["\"\",\"\""] = new[] { string.Empty, string.Empty, },
+            //["\"\",\"\",\"\""] = new[] { string.Empty, string.Empty, string.Empty, },
+            ["A"] = new[] { "A", },
+            ["A,B"] = new[] { "A", "B", },
+            ["A,B,C"] = new[] { "A", "B", "C", },
+            ["AA"] = new[] { "AA", },
+            ["AA,BB"] = new[] { "AA", "BB", },
+            ["AA,BB,CC"] = new[] { "AA", "BB", "CC", },
+            ["AAA"] = new[] { "AAA", },
+            ["AAA,BBB"] = new[] { "AAA", "BBB", },
+            ["AAA,BBB,CCC"] = new[] { "AAA", "BBB", "CCC", },
+            ["A,BB,CCC"] = new[] { "A", "BB", "CCC", },
+            ["\"A\""] = new[] { "A", },
+            ["\"A\",\"B\""] = new[] { "A", "B", },
+            ["\"A\",\"B\",\"C\""] = new[] { "A", "B", "C", },
+            ["\"AA\""] = new[] { "AA", },
+            ["\"AA\",\"BB\""] = new[] { "AA", "BB", },
+            ["\"AA\",\"BB\",\"CC\""] = new[] { "AA", "BB", "CC", },
+            ["\"AAA\""] = new[] { "AAA", },
+            ["\"AAA\",\"BBB\""] = new[] { "AAA", "BBB", },
+            ["\"AAA\",\"BBB\",\"CCC\""] = new[] { "AAA", "BBB", "CCC", },
+            ["\"A\",\"BB\",\"CCC\""] = new[] { "A", "BB", "CCC", },
+            ["\"\"A"] = new[] { "\"A", },
+            ["\"\"A,\"\"B"] = new[] { "\"A", "\"B", },
+            ["\"\"A,\"\"B,\"\"C"] = new[] { "\"A", "\"B", "\"C", },
+            ["A\"\""] = new[] { "A\"", },
+            ["A\"\",B\"\""] = new[] { "A\"", "B\"", },
+            ["A\"\",B\"\",C\"\""] = new[] { "A\"", "B\"", "C\"", },
+            ["A\"\",B\"\""] = new[] { "A\"", "B\"", },
+            ["\"\"A,B\"\""] = new[] { "\"A", "B\"", },
+            ["A\"\",\"\"B"] = new[] { "A\"", "\"B", },
+            ["\"Jürgens, David\",\"Jürgens, Mandy\""] = new[] { "Jürgens, David", "Jürgens, Mandy" },
+            ["\"David \"\"Kittoes\"\" Jürgens\",\"Mandy \"\"Saonserey\"\" Jürgens\""] = new[] { "David \"Kittoes\" Jürgens", "Mandy \"Saonserey\" Jürgens" },
         };
 
         [TestMethod]
@@ -47,13 +69,13 @@ Key: {kvp.Key}"
 
                 for (var i = 0; (i < length); ++i) {
                     Assert.IsTrue(
-                        condition: value.Span[i].Span.SequenceEqual(result.Span[i].Span),
+                        condition: value[i].AsMemory().Span.SequenceEqual(result.Span[i].Span),
                         message: $@"
 Error: Field value mismatch.
 Key: {kvp.Key}
 Index: {i}
 Actual: {result.Span[i].Span}
-Expected: {value.Span[i].Span}"
+Expected: {value[i]}"
                     );
                 }
             }
