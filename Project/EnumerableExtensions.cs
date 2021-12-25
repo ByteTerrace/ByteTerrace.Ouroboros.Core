@@ -1,4 +1,5 @@
-﻿using Microsoft.Toolkit.HighPerformance.Buffers;
+﻿using Microsoft.Toolkit.HighPerformance;
+using Microsoft.Toolkit.HighPerformance.Buffers;
 using System.Buffers;
 using System.Text;
 
@@ -53,12 +54,10 @@ namespace ByteTerrace.Ouroboros.Core
             this IEnumerable<ReadOnlyMemory<byte>> source,
             byte delimiter = FieldSeparator
         ) {
-            using var xIndices = new ArrayPoolBufferWriter<int>();
-
             foreach (var yChunk in source) {
-                yChunk.Span.IndicesOf(delimiter, xIndices);
-
-                var loopLimit = xIndices.WrittenCount;
+                var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
+                var xIndices = valueListBuilder.BuildValueList(ref yChunk.Span.DangerousGetReference(), yChunk.Length, delimiter);
+                var loopLimit = xIndices.Length;
                 var previousIndex = 0;
 
                 using var xChunk = MemoryOwner<ReadOnlyMemory<byte>>.Allocate(size: (loopLimit + 1));
@@ -67,7 +66,7 @@ namespace ByteTerrace.Ouroboros.Core
                     var loopIndex = 0;
 
                     do {
-                        var currentIndex = xIndices.WrittenSpan[loopIndex];
+                        var currentIndex = xIndices[loopIndex];
 
                         if (currentIndex != previousIndex) {
                             xChunk.Span[loopIndex] = yChunk[previousIndex..currentIndex];
@@ -88,20 +87,16 @@ namespace ByteTerrace.Ouroboros.Core
                 }
 
                 yield return xChunk;
-
-                xIndices.Clear();
             }
         }
         public static IEnumerable<MemoryOwner<ReadOnlyMemory<char>>> ReadDelimitedFields(
             this IEnumerable<ReadOnlyMemory<char>> source,
             char delimiter = ','
         ) {
-            using var xIndices = new ArrayPoolBufferWriter<int>();
-
             foreach (var yChunk in source) {
-                yChunk.Span.IndicesOf(delimiter, xIndices);
-
-                var loopLimit = xIndices.WrittenCount;
+                var valueListBuilder = new ArrayPoolList<int>(stackalloc int[64]);
+                var xIndices = valueListBuilder.BuildValueList(ref yChunk.Span.DangerousGetReference(), yChunk.Length, delimiter);
+                var loopLimit = xIndices.Length;
                 var previousIndex = 0;
 
                 using var xChunk = MemoryOwner<ReadOnlyMemory<char>>.Allocate(size: (loopLimit + 1));
@@ -110,7 +105,7 @@ namespace ByteTerrace.Ouroboros.Core
                     var loopIndex = 0;
 
                     do {
-                        var currentIndex = xIndices.WrittenSpan[loopIndex];
+                        var currentIndex = xIndices[loopIndex];
 
                         if (currentIndex != previousIndex) {
                             xChunk.Span[loopIndex] = yChunk[previousIndex..currentIndex];
@@ -131,8 +126,6 @@ namespace ByteTerrace.Ouroboros.Core
                 }
 
                 yield return xChunk;
-
-                xIndices.Clear();
             }
         }
         public static IEnumerable<ReadOnlyMemory<byte>> ReadDelimitedRecords(
@@ -208,13 +201,14 @@ namespace ByteTerrace.Ouroboros.Core
 
             foreach (var record in source) {
                 var fieldMemory = ReadOnlyMemory<byte>.Empty;
-                var loopLimit = (record.Memory.Length - 1);
+                var recordMemory = record.Memory;
+                var loopLimit = (recordMemory.Length - 1);
 
                 if (0 < loopLimit) {
                     var loopIndex = 0;
 
                     do {
-                        fieldMemory = record.Memory.Span[loopIndex++];
+                        fieldMemory = recordMemory.Span[loopIndex++];
 
                         if (0 < fieldMemory.Length) {
                             if (!isBinaryFieldSupportEnabled || (-1 == fieldMemory.Span.IndexOfAny(FieldSeparator, RecordSeparator, EscapeSentinel))) {
@@ -233,7 +227,7 @@ namespace ByteTerrace.Ouroboros.Core
                     } while (loopIndex < loopLimit);
                 }
 
-                fieldMemory = record.Memory.Span[^1];
+                fieldMemory = recordMemory.Span[^1];
 
                 if (0 < fieldMemory.Length) {
                     if (!isBinaryFieldSupportEnabled || (-1 == fieldMemory.Span.IndexOfAny(FieldSeparator, RecordSeparator, EscapeSentinel))) {

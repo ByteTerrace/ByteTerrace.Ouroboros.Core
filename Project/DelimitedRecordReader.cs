@@ -15,7 +15,6 @@ namespace ByteTerrace.Ouroboros.Core
         private readonly ArrayPoolBufferWriter<char> m_recordBuffer;
         private readonly ArrayPoolBufferWriter<char> m_decodedBuffer;
         private readonly char m_delimiter;
-        private readonly ArrayPoolBufferWriter<int> m_fieldIndices;
 
         private MemoryOwner<ReadOnlyMemory<char>> m_currentRecord;
         private int m_decodedBufferOffset;
@@ -42,7 +41,6 @@ namespace ByteTerrace.Ouroboros.Core
             m_decodedBuffer = new(initialCapacity: Encoding.UTF8.GetMaxCharCount(byteCount: bufferSize));
             m_decodedBufferOffset = 1;
             m_delimiter = delimiter;
-            m_fieldIndices = new(initialCapacity: 16);
             m_recordBuffer = new(initialCapacity: 256);
         }
 
@@ -134,10 +132,9 @@ namespace ByteTerrace.Ouroboros.Core
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private bool MoveNextCore() {
             m_currentRecord.Dispose();
-            m_fieldIndices.Clear();
-            RecordSpan.IndicesOf(',', m_fieldIndices);
 
-            var loopLimit = m_fieldIndices.WrittenCount;
+            var fieldIndices = RecordSpan.IndicesOf(',');
+            var loopLimit = fieldIndices.Length;
             var previousIndex = 0;
             var record = MemoryOwner<ReadOnlyMemory<char>>.Allocate(size: (loopLimit + 1));
 
@@ -145,7 +142,7 @@ namespace ByteTerrace.Ouroboros.Core
                 var loopIndex = 0;
 
                 do {
-                    var currentIndex = m_fieldIndices.WrittenSpan[loopIndex];
+                    var currentIndex = fieldIndices[loopIndex];
 
                     if (currentIndex != previousIndex) {
                         record.Span[loopIndex] = RecordMemory[previousIndex..currentIndex];
@@ -176,7 +173,6 @@ namespace ByteTerrace.Ouroboros.Core
         protected virtual void Dispose(bool disposing) {
             if (disposing) {
                 m_currentRecord.Dispose();
-                m_fieldIndices.Dispose();
                 m_recordBuffer.Dispose();
                 m_decodedBuffer.Dispose();
             }
