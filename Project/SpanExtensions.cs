@@ -463,14 +463,13 @@ namespace ByteTerrace.Ouroboros.Core
                     if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
                         var searchVector = LoadVector128(ref input, index);
                         var value0VectorMask = ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value0), searchVector).AsByte()));
-                        var combinedMask = (value0VectorMask | ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value1), searchVector).AsByte())));
+                        var combinedMask = ((((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value1), searchVector).AsByte())) | value0VectorMask) & 0b01010101010101010101010101010101);
 
                         while (0 != combinedMask) {
                             var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
-                            var isValue0 = BitHelper.HasFlag(value0VectorMask, combinedIndex);
+                            var isValue0 = ((uint)BitHelper.HasFlag(value0VectorMask, combinedIndex).ToByte());
 
-                            arrayPoolList.Add((((uint)index) + (((uint)combinedIndex) >> 1)) | ((uint)((isValue0.ToByte()) << 31)));
-                            combinedMask &= (combinedMask - 1);
+                            arrayPoolList.Add((((uint)index) + (((uint)combinedIndex) >> 1)) | (isValue0 << 31));
                             combinedMask &= (combinedMask - 1);
                         }
 
@@ -486,14 +485,13 @@ namespace ByteTerrace.Ouroboros.Core
                         do {
                             var searchVector = LoadVector256(ref input, index);
                             var value0VectorMask = ((uint)Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte()));
-                            var combinedMask = (value0VectorMask | ((uint)Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte())));
+                            var combinedMask = ((((uint)Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte())) | value0VectorMask) & 0b01010101010101010101010101010101);
 
                             while (0 != combinedMask) {
                                 var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
-                                var isValue0 = BitHelper.HasFlag(value0VectorMask, combinedIndex);
+                                var isValue0 = ((uint)BitHelper.HasFlag(value0VectorMask, combinedIndex).ToByte());
 
-                                arrayPoolList.Add((((uint)index) + (((uint)combinedIndex) >> 1)) | ((uint)((isValue0.ToByte()) << 31)));
-                                combinedMask &= (combinedMask - 1);
+                                arrayPoolList.Add((((uint)index) + (((uint)combinedIndex) >> 1)) | (isValue0 << 31));
                                 combinedMask &= (combinedMask - 1);
                             }
 

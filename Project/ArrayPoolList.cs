@@ -18,7 +18,6 @@ namespace ByteTerrace.Ouroboros.Core
         public int Length {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => m_index;
-            set => m_index = value;
         }
         public ReadOnlySpan<T> WrittenSpan {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
