@@ -462,7 +462,7 @@ namespace ByteTerrace.Ouroboros.Core
                 if ((7 < length) && (index < length)) {
                     if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
                         if (arrayPoolList.Capacity <= arrayPoolList.Length) {
-                            arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity << 1) + 8));
+                            arrayPoolList.Resize(minimumSize: (arrayPoolList.Capacity << 1));
                         }
 
                         var searchVector = LoadVector128(ref input, index);
@@ -488,7 +488,7 @@ namespace ByteTerrace.Ouroboros.Core
 
                         do {
                             if (arrayPoolList.Capacity <= arrayPoolList.Length) {
-                                arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity << 1) + 16));
+                                arrayPoolList.Resize(minimumSize: (arrayPoolList.Capacity << 1));
                             }
 
                             var searchVector = LoadVector256(ref input, index);
