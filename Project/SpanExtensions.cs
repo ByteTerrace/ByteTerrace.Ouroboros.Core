@@ -461,8 +461,8 @@ namespace ByteTerrace.Ouroboros.Core
             if (Avx2.IsSupported) {
                 if ((7 < length) && (index < length)) {
                     if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
-                        if (arrayPoolList.Capacity <= arrayPoolList.Length) {
-                            arrayPoolList.Resize(minimumSize: (arrayPoolList.Capacity << 1));
+                        if (arrayPoolList.Capacity <= (arrayPoolList.Length + 8)) {
+                            arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + 8) << 1));
                         }
 
                         var searchVector = LoadVector128(ref input, index);
@@ -487,8 +487,8 @@ namespace ByteTerrace.Ouroboros.Core
                         var value1Vector = Vector256.Create(value1);
 
                         do {
-                            if (arrayPoolList.Capacity <= arrayPoolList.Length) {
-                                arrayPoolList.Resize(minimumSize: (arrayPoolList.Capacity << 1));
+                            if (arrayPoolList.Capacity <= (arrayPoolList.Length + 16)) {
+                                arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + 16) << 1));
                             }
 
                             var searchVector = LoadVector256(ref input, index);
@@ -511,6 +511,10 @@ namespace ByteTerrace.Ouroboros.Core
             }
             else if (Sse2.IsSupported) {
                 throw new NotSupportedException();
+            }
+
+            if (arrayPoolList.Capacity <= (arrayPoolList.Length + (length - index))) {
+                arrayPoolList.Resize(minimumSize: (arrayPoolList.Length + ((int)(length - index))));
             }
 
             while (index < length) {
