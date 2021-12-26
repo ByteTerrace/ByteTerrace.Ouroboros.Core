@@ -15,11 +15,15 @@ namespace ByteTerrace.Ouroboros.Core
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => ref m_span[index];
         }
+        public int Capacity {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => m_span.Length;
+        }
         public int Length {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => m_index;
         }
-        public ReadOnlySpan<T> WrittenSpan {
+        public Span<T> Span {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get {
                 var span = m_span;
@@ -36,13 +40,17 @@ namespace ByteTerrace.Ouroboros.Core
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Add(T value) {
-            var index = m_index;
-            var length = m_span.Length;
+            var capacity = Capacity;
+            var length = Length;
 
-            if (index >= length) {
-                ResizeBuffer(minimumSize: (length << 1));
+            if (capacity <= length) {
+                Resize(minimumSize: (capacity << 1));
             }
 
+            AddUnsafe(value);
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddUnsafe(T value) {
             m_span[m_index++] = value;
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -57,9 +65,8 @@ namespace ByteTerrace.Ouroboros.Core
 
             ArrayPool<T>.Shared.Return(array);
         }
-
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private void ResizeBuffer(int minimumSize) {
+        public void Resize(int minimumSize) {
             if (m_array is not null) {
                 ArrayPool<T>.Shared.Resize(array: ref m_array, newSize: minimumSize);
             }
