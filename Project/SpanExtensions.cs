@@ -460,52 +460,56 @@ namespace ByteTerrace.Ouroboros.Core
 
             if (Avx2.IsSupported) {
                 if ((7 < length) && (index < length)) {
+                    const int vector128Increment = 8;
+
                     if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
-                        if (arrayPoolList.Capacity <= (arrayPoolList.Length + 8)) {
-                            arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + 8) << 1));
+                        if (arrayPoolList.Capacity <= (arrayPoolList.Length + vector128Increment)) {
+                            arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + vector128Increment) << 1));
                         }
 
                         var searchVector = LoadVector128(ref input, index);
                         var value0VectorMask = ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value0), searchVector).AsByte()));
-                        var combinedMask = ((((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value1), searchVector).AsByte())) | value0VectorMask) & 0b01010101010101010101010101010101);
+                        var combinedMask = ((((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value1), searchVector).AsByte())) | value0VectorMask) & 0b01010101010101010101010101010101U);
 
                         while (0 != combinedMask) {
                             var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
-                            var isValue0 = ((uint)BitHelper.HasFlag(value0VectorMask, combinedIndex).ToByte());
+                            var isValue0 = BitHelper.HasFlag(value0VectorMask, combinedIndex).ToByte();
 
-                            arrayPoolList.AddUnsafe((((uint)index) + (((uint)combinedIndex) >> 1)) | (isValue0 << 31));
-                            combinedMask &= (combinedMask - 1);
+                            arrayPoolList.AddUnsafe((((uint)index) + (((uint)combinedIndex) >> 1)) | (((uint)isValue0) << 31));
+                            combinedMask = Bmi1.ResetLowestSetBit(combinedMask);
                         }
 
-                        index += 8;
+                        index += vector128Increment;
                     }
 
-                    var lengthToExamine = GetCharVector256SpanLength(index, length);
+                    const int vector256Increment = 16;
 
-                    if (15 < lengthToExamine) {
+                    var loopIndex = 0;
+                    var loopLimit = (GetCharVector256SpanLength(index, length) / vector256Increment);
+
+                    if (0 < loopLimit) {
                         var value0Vector = Vector256.Create(value0);
                         var value1Vector = Vector256.Create(value1);
 
                         do {
-                            if (arrayPoolList.Capacity <= (arrayPoolList.Length + 16)) {
-                                arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + 16) << 1));
+                            if (arrayPoolList.Capacity <= (arrayPoolList.Length + vector256Increment)) {
+                                arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + vector256Increment) << 1));
                             }
 
                             var searchVector = LoadVector256(ref input, index);
                             var value0VectorMask = ((uint)Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte()));
-                            var combinedMask = ((((uint)Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte())) | value0VectorMask) & 0b01010101010101010101010101010101);
+                            var combinedMask = ((((uint)Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte())) | value0VectorMask) & 0b01010101010101010101010101010101U);
 
                             while (0 != combinedMask) {
                                 var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
-                                var isValue0 = ((uint)BitHelper.HasFlag(value0VectorMask, combinedIndex).ToByte());
+                                var isValue0 = BitHelper.HasFlag(value0VectorMask, combinedIndex).ToByte();
 
-                                arrayPoolList.AddUnsafe((((uint)index) + (((uint)combinedIndex) >> 1)) | (isValue0 << 31));
-                                combinedMask &= (combinedMask - 1);
+                                arrayPoolList.AddUnsafe((((uint)index) + (((uint)combinedIndex) >> 1)) | (((uint)isValue0) << 31));
+                                combinedMask = Bmi1.ResetLowestSetBit(combinedMask);
                             }
 
-                            lengthToExamine -= 16;
-                            index += 16;
-                        } while (15 < lengthToExamine);
+                            index += vector256Increment;
+                        } while (++loopIndex < loopLimit);
                     }
                 }
             }
