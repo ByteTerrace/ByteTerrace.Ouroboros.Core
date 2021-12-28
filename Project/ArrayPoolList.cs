@@ -28,7 +28,7 @@ namespace ByteTerrace.Ouroboros.Core
             get {
                 var span = m_span;
 
-                return span.Slice(0, m_index);
+                return span[..m_index];
             }
         }
 
@@ -64,6 +64,14 @@ namespace ByteTerrace.Ouroboros.Core
             m_array = null;
 
             ArrayPool<T>.Shared.Return(array);
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Reset(bool eraseData = false) {
+            if (eraseData) {
+                m_span.Fill(default!);
+            }
+
+            m_index = 0;
         }
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void Resize(int minimumSize) {

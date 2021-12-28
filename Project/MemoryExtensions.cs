@@ -55,6 +55,7 @@ namespace ByteTerrace.Ouroboros.Core
                 var beginIndex = 0;
                 var endIndex = 0;
                 var escapeSentinelRunLength = 0;
+                var inputSpan = input.Span;
                 var loopIndex = 0;
                 var stringBuilder = ReadOnlyMemory<char>.Empty;
                 var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
@@ -63,7 +64,7 @@ namespace ByteTerrace.Ouroboros.Core
                 do {
                     endIndex = ((int)controlIndices[loopIndex++]);
 
-                    if (0 != (endIndex & 0b10000000000000000000000000000000)) { // isDelimiter
+                    if (delimiter == inputSpan[endIndex]) { // isDelimiter
                         endIndex &= 0b01111111111111111111111111111111;
 
                         if (stringBuilder.IsEmpty) {
@@ -89,7 +90,7 @@ namespace ByteTerrace.Ouroboros.Core
                     else if (loopIndex < loopLimit) {
                         ++escapeSentinelRunLength;
 
-                        if (0 != (controlIndices[loopIndex] & 0b10000000000000000000000000000000)) { // isDelimiter
+                        if (delimiter == inputSpan[(int)controlIndices[loopIndex]]) { // isDelimiter
                             if (1 == (escapeSentinelRunLength & 1)) { // isOddEscapeSentinelRun
                                 ++loopIndex;
                             }
@@ -115,7 +116,7 @@ namespace ByteTerrace.Ouroboros.Core
                     }
                 } while (loopIndex < loopLimit);
 
-                if ((0 == (controlIndices[^1] & 0b10000000000000000000000000000000)) && ((2 != (length - beginIndex)) || (1 != (length - endIndex)))) {
+                if ((escapeSentinel == input.Span[(int)controlIndices[^1]]) && ((2 != (length - beginIndex)) || (1 != (length - endIndex)))) {
                     ++beginIndex;
                 }
 

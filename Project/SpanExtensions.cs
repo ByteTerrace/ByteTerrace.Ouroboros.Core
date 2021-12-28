@@ -1,9 +1,9 @@
 ﻿using Microsoft.Toolkit.HighPerformance;
 using Microsoft.Toolkit.HighPerformance.Buffers;
-using Microsoft.Toolkit.HighPerformance.Helpers;
 using System.Buffers;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
@@ -16,6 +16,82 @@ namespace ByteTerrace.Ouroboros.Core
     /// </summary>
     public static class SpanExtensions
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetByteIndexMask(this Vector128<byte> searchVector, Vector128<byte> value0Vector, Vector128<byte> value1Vector) {
+            var result = Sse2.MoveMask(Sse2.CompareEqual(value0Vector, searchVector).AsByte());
+
+            result |= Sse2.MoveMask(Sse2.CompareEqual(value1Vector, searchVector).AsByte());
+
+            return result;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetByteIndexMask(this Vector256<byte> searchVector, Vector256<byte> value0Vector, Vector256<byte> value1Vector) {
+            var result = Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte());
+
+            result |= Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte());
+
+            return result;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetCharIndexMask(this Vector128<ushort> searchVector, Vector128<ushort> value0Vector, Vector128<ushort> value1Vector) {
+            var result = Sse2.MoveMask(Sse2.CompareEqual(value0Vector, searchVector).AsByte());
+
+            result |= Sse2.MoveMask(Sse2.CompareEqual(value1Vector, searchVector).AsByte());
+            result &= 0b01010101010101010101010101010101;
+
+            return result;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetCharIndexMask(this Vector256<ushort> searchVector, Vector256<ushort> value0Vector, Vector256<ushort> value1Vector) {
+            var result = Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte());
+
+            result |= Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte());
+            result &= 0b01010101010101010101010101010101;
+
+            return result;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetCharIndexMask(this Vector128<ushort> searchVector, Vector128<ushort> value0Vector, Vector128<ushort> value1Vector, Vector128<ushort> value2Vector) {
+            var result = Sse2.MoveMask(Sse2.CompareEqual(value0Vector, searchVector).AsByte());
+
+            result |= Sse2.MoveMask(Sse2.CompareEqual(value1Vector, searchVector).AsByte());
+            result |= Sse2.MoveMask(Sse2.CompareEqual(value2Vector, searchVector).AsByte());
+            result &= 0b01010101010101010101010101010101;
+
+            return result;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetCharIndexMask(this Vector256<ushort> searchVector, Vector256<ushort> value0Vector, Vector256<ushort> value1Vector, Vector256<ushort> value2Vector) {
+            var result = Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte());
+
+            result |= Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte());
+            result |= Avx2.MoveMask(Avx2.CompareEqual(value2Vector, searchVector).AsByte());
+            result &= 0b01010101010101010101010101010101;
+
+            return result;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetCharIndexMask(this Vector128<ushort> searchVector, Vector128<ushort> value0Vector, Vector128<ushort> value1Vector, Vector128<ushort> value2Vector, Vector128<ushort> value3Vector) {
+            var result = Sse2.MoveMask(Sse2.CompareEqual(value0Vector, searchVector).AsByte());
+
+            result |= Sse2.MoveMask(Sse2.CompareEqual(value1Vector, searchVector).AsByte());
+            result |= Sse2.MoveMask(Sse2.CompareEqual(value2Vector, searchVector).AsByte());
+            result |= Sse2.MoveMask(Sse2.CompareEqual(value3Vector, searchVector).AsByte());
+            result &= 0b01010101010101010101010101010101;
+
+            return result;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetCharIndexMask(this Vector256<ushort> searchVector, Vector256<ushort> value0Vector, Vector256<ushort> value1Vector, Vector256<ushort> value2Vector, Vector256<ushort> value3Vector) {
+            var result = Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte());
+
+            result |= Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte());
+            result |= Avx2.MoveMask(Avx2.CompareEqual(value2Vector, searchVector).AsByte());
+            result |= Avx2.MoveMask(Avx2.CompareEqual(value3Vector, searchVector).AsByte());
+            result &= 0b01010101010101010101010101010101;
+
+            return result;
+        }
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static unsafe int OccurrencesOf(ref byte input, int length, byte value) {
             var lengthToExamine = ((nuint)length);
@@ -386,51 +462,193 @@ namespace ByteTerrace.Ouroboros.Core
             return ((int)result);
         }
 
+        private ref struct CharIndexState
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private static int GetMask(Vector128<ushort> searchVector, Vector128<ushort> value0Vector, Vector128<ushort> value1Vector) {
+                var result = Sse2.MoveMask(Sse2.CompareEqual(value0Vector, searchVector).AsByte());
+
+                result |= Sse2.MoveMask(Sse2.CompareEqual(value1Vector, searchVector).AsByte());
+                result &= 0b01010101010101010101010101010101;
+
+                return result;
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private static int GetMask(Vector256<ushort> searchVector, Vector256<ushort> value0Vector, Vector256<ushort> value1Vector) {
+                var result = Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte());
+
+                result |= Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte());
+                result &= 0b01010101010101010101010101010101;
+
+                return result;
+            }
+
+            private uint Mask { get; set; }
+
+            public uint BeginIndex { get; private set; }
+            public uint EndIndex { get; private set; }
+
+            public CharIndexState(uint beginIndex, uint endIndex, uint indexMask) {
+                BeginIndex = beginIndex;
+                EndIndex = endIndex;
+                Mask = indexMask;
+            }
+            public CharIndexState() : this(beginIndex: 0U, endIndex: 0U, indexMask: 0U) { }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public uint GetCurrentIndex() {
+                return (Bmi1.TrailingZeroCount(Mask) >> 1);
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool MoveNext() {
+                return (0 != (Mask = Bmi1.ResetLowestSetBit(Mask)));
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool MoveNext(Vector128<ushort> searchVector, Vector128<ushort> value0, Vector128<ushort> value1) {
+                return (0 != (Mask = ((uint)GetMask(searchVector, value0, value1))));
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool MoveNext(Vector256<ushort> searchVector, Vector256<ushort> value0, Vector256<ushort> value1) {
+                return (0 != (Mask = ((uint)GetMask(searchVector, value0, value1))));
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        internal static unsafe int DelimitN(this ref ArrayPoolList<uint> arrayPoolList, ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
+            var length = input.Length;
+            var offset = ((nint)0);
+            var state = new CharIndexState();
+
+            ref var inputRef = ref MemoryMarshal.GetReference(input.Span);
+
+            if (Avx2.IsSupported) {
+                const int Vector128Increment = 8;
+                const int Vector256Increment = 16;
+
+                if (15 < length) {
+                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref inputRef, offset))) & (Vector256<byte>.Count - 1))) {
+                        if (arrayPoolList.Capacity <= (arrayPoolList.Length + Vector128Increment)) {
+                            arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + Vector128Increment) << 1));
+                        }
+
+                        if (state.MoveNext(
+                            searchVector: LoadVector128(ref inputRef, offset),
+                            value0: Vector128.Create(delimiter),
+                            value1: Vector128.Create(escapeSentinel)
+                        )) {
+                            do {
+                                arrayPoolList.AddUnsafe(((uint)offset) + state.GetCurrentIndex());
+                            } while (state.MoveNext());
+                        }
+
+                        offset += Vector128Increment;
+                    }
+
+                    var loopIndex = 0;
+                    var loopLimit = ((length - ((int)offset)) / Vector256Increment);
+
+                    if (loopIndex < loopLimit) {
+                        var delimiterVector = Vector256.Create(delimiter);
+                        var escapeSentinelVector = Vector256.Create(escapeSentinel);
+
+                        do {
+                            if (arrayPoolList.Capacity <= (arrayPoolList.Length + Vector256Increment)) {
+                                arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + Vector256Increment) << 1));
+                            }
+
+                            if (state.MoveNext(
+                                searchVector: LoadVector256(ref inputRef, offset),
+                                value0: delimiterVector,
+                                value1: escapeSentinelVector
+                            )) {
+                                do {
+                                    arrayPoolList.AddUnsafe(((uint)offset) + state.GetCurrentIndex());
+                                } while (state.MoveNext());
+                            }
+
+                            offset += Vector256Increment;
+                        } while (++loopIndex < loopLimit);
+                    }
+                }
+            }
+
+            if (arrayPoolList.Capacity <= (arrayPoolList.Length + (length - offset))) {
+                arrayPoolList.Resize(minimumSize: (arrayPoolList.Length + ((int)(length - offset))));
+            }
+
+            while (offset < length) {
+                ref var c = ref Unsafe.Add(ref inputRef, offset);
+
+                if ((delimiter == c) || (escapeSentinel == c)) {
+                    arrayPoolList.Add((uint)offset);
+                }
+
+                ++offset;
+            }
+
+            return arrayPoolList.Length;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         [SkipLocalsInit]
         internal static unsafe int BuildIndicesList(this ref ArrayPoolList<uint> arrayPoolList, ref byte input, int length, byte value0, byte value1) {
+            /// <remarks>
+            /// WARNING: This method should not be called without first ensuring that the target <see cref="ArrayPoolList{T}"/> has the correct capacity.
+            /// </remarks>
+            [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+            static void ProcessIndexMaskUnsafe(ref ArrayPoolList<uint> arrayPoolList, uint offset, uint valueIndexMask) {
+                if (0 != valueIndexMask) {
+                    do {
+                        var valueIndex = Bmi1.TrailingZeroCount(valueIndexMask);
+
+                        arrayPoolList.AddUnsafe(offset + valueIndex);
+                        valueIndexMask = Bmi1.ResetLowestSetBit(valueIndexMask);
+                    } while (0 != valueIndexMask);
+                }
+            }
+
             var index = ((nuint)0);
 
             if (Avx2.IsSupported) {
                 if ((15 < length) && (index < ((nuint)length))) {
+                    const int vector128Increment = 16;
+
                     if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref input, index))) & (Vector256<byte>.Count - 1))) {
-                        var searchVector = LoadVector128(ref input, index);
-                        var value0VectorMask = ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value0), searchVector)));
-                        var combinedMask = (value0VectorMask | ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value1), searchVector))));
-
-                        while (0 != combinedMask) {
-                            var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
-                            var isValue0 = BitHelper.HasFlag(value0VectorMask, combinedIndex);
-
-                            arrayPoolList.Add(((uint)(index + ((uint)combinedIndex))) | ((uint)((isValue0.ToByte()) << 31)));
-                            combinedMask &= (combinedMask - 1);
+                        if (arrayPoolList.Capacity <= (arrayPoolList.Length + vector128Increment)) {
+                            arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + vector128Increment) << 1));
                         }
 
-                        index += 16;
+                        var searchVector = LoadVector128(ref input, index);
+                        var value0Vector = Vector128.Create(value0);
+                        var value1Vector = Vector128.Create(value1);
+                        var valueIndexMask = ((uint)searchVector.GetByteIndexMask(value0Vector, value1Vector));
+
+                        ProcessIndexMaskUnsafe(ref arrayPoolList, ((uint)index), valueIndexMask);
+
+                        index += vector128Increment;
                     }
 
-                    var lengthToExamine = GetByteVector256SpanLength(index, length);
+                    const int vector256Increment = 32;
 
-                    if (31 < lengthToExamine) {
+                    var loopIndex = 0U;
+                    var loopLimit = (GetByteVector256SpanLength(index, length) / vector256Increment);
+
+                    if (0 < loopLimit) {
                         var value0Vector = Vector256.Create(value0);
                         var value1Vector = Vector256.Create(value1);
 
                         do {
-                            var searchVector = LoadVector256(ref input, index);
-                            var value0VectorMask = ((uint)Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector)));
-                            var combinedMask = (value0VectorMask | ((uint)Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector))));
-
-                            while (0 != combinedMask) {
-                                var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
-                                var isValue0 = BitHelper.HasFlag(value0VectorMask, combinedIndex);
-
-                                arrayPoolList.Add(((uint)(index + ((uint)combinedIndex))) | ((uint)((isValue0.ToByte()) << 31)));
-                                combinedMask &= (combinedMask - 1);
+                            if (arrayPoolList.Capacity <= (arrayPoolList.Length + vector256Increment)) {
+                                arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + vector256Increment) << 1));
                             }
 
-                            index += 32;
-                            lengthToExamine -= 32;
-                        } while (31 < lengthToExamine);
+                            var searchVector = LoadVector256(ref input, index);
+                            var valueIndexMask = ((uint)searchVector.GetByteIndexMask(value0Vector, value1Vector));
+
+                            ProcessIndexMaskUnsafe(ref arrayPoolList, ((uint)index), valueIndexMask);
+
+                            index += vector256Increment;
+                        } while (++loopIndex < loopLimit);
                     }
                 }
             }
@@ -456,6 +674,21 @@ namespace ByteTerrace.Ouroboros.Core
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         [SkipLocalsInit]
         internal static unsafe int BuildIndicesList(this ref ArrayPoolList<uint> arrayPoolList, ref char input, int length, char value0, char value1) {
+            /// <remarks>
+            /// WARNING: This method should not be called without first ensuring that the target <see cref="ArrayPoolList{T}"/> has the correct capacity.
+            /// </remarks>
+            [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+            static void ProcessIndexMaskUnsafe(ref ArrayPoolList<uint> arrayPoolList, uint offset, uint valueIndexMask) {
+                if (0 != valueIndexMask) {
+                    do {
+                        var valueIndex = Bmi1.TrailingZeroCount(valueIndexMask);
+
+                        arrayPoolList.AddUnsafe(offset + (valueIndex >> 1));
+                        valueIndexMask = Bmi1.ResetLowestSetBit(valueIndexMask);
+                    } while (0 != valueIndexMask);
+                }
+            }
+
             var index = ((nint)0);
 
             if (Avx2.IsSupported) {
@@ -468,16 +701,11 @@ namespace ByteTerrace.Ouroboros.Core
                         }
 
                         var searchVector = LoadVector128(ref input, index);
-                        var value0VectorMask = ((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value0), searchVector).AsByte()));
-                        var combinedMask = ((((uint)Sse2.MoveMask(Sse2.CompareEqual(Vector128.Create(value1), searchVector).AsByte())) | value0VectorMask) & 0b01010101010101010101010101010101U);
+                        var value0Vector = Vector128.Create(value0);
+                        var value1Vector = Vector128.Create(value1);
+                        var valueIndexMask = ((uint)searchVector.GetCharIndexMask(value0Vector, value1Vector));
 
-                        while (0 != combinedMask) {
-                            var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
-                            var isValue0 = BitHelper.HasFlag(value0VectorMask, combinedIndex).ToByte();
-
-                            arrayPoolList.AddUnsafe((((uint)index) + (((uint)combinedIndex) >> 1)) | (((uint)isValue0) << 31));
-                            combinedMask = Bmi1.ResetLowestSetBit(combinedMask);
-                        }
+                        ProcessIndexMaskUnsafe(ref arrayPoolList, ((uint)index), valueIndexMask);
 
                         index += vector128Increment;
                     }
@@ -497,24 +725,14 @@ namespace ByteTerrace.Ouroboros.Core
                             }
 
                             var searchVector = LoadVector256(ref input, index);
-                            var value0VectorMask = ((uint)Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte()));
-                            var combinedMask = ((((uint)Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte())) | value0VectorMask) & 0b01010101010101010101010101010101U);
+                            var valueIndexMask = ((uint)searchVector.GetCharIndexMask(value0Vector, value1Vector));
 
-                            while (0 != combinedMask) {
-                                var combinedIndex = BitOperations.TrailingZeroCount(combinedMask);
-                                var isValue0 = BitHelper.HasFlag(value0VectorMask, combinedIndex).ToByte();
-
-                                arrayPoolList.AddUnsafe((((uint)index) + (((uint)combinedIndex) >> 1)) | (((uint)isValue0) << 31));
-                                combinedMask = Bmi1.ResetLowestSetBit(combinedMask);
-                            }
+                            ProcessIndexMaskUnsafe(ref arrayPoolList, ((uint)index), valueIndexMask);
 
                             index += vector256Increment;
                         } while (++loopIndex < loopLimit);
                     }
                 }
-            }
-            else if (Sse2.IsSupported) {
-                throw new NotSupportedException();
             }
 
             if (arrayPoolList.Capacity <= (arrayPoolList.Length + (length - index))) {
@@ -522,12 +740,9 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             while (index < length) {
-                ref var b = ref Unsafe.Add(ref input, index);
+                ref var c = ref Unsafe.Add(ref input, index);
 
-                if (value0 == b) {
-                    arrayPoolList.Add(((uint)index) | (1U << 31));
-                }
-                else if (value1 == b) {
+                if ((value0 == c) || (value1 == c)) {
                     arrayPoolList.Add((uint)index);
                 }
 
@@ -536,6 +751,7 @@ namespace ByteTerrace.Ouroboros.Core
 
             return arrayPoolList.Length;
         }
+
         internal static ReadOnlySpan<int> BuildValueList(this ref ArrayPoolList<int> valueListBuilder, ref byte input, int length, byte value) {
             var index = 0;
 

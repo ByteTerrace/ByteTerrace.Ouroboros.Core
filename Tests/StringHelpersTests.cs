@@ -8,7 +8,7 @@ namespace ByteTerrace.Ouroboros.Core.Tests
     [TestClass]
     public class StringHelpersTests
     {
-        private static IDictionary<string, string[]> KnownCases = new Dictionary<string, string[]> {
+        private static IDictionary<string, string[]> KnownCases => new Dictionary<string, string[]> {
             [""] = new[] { string.Empty, },
             [","] = new[] { string.Empty, string.Empty, },
             [",,"] = new[] { string.Empty, string.Empty, string.Empty, },
