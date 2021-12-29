@@ -3,7 +3,6 @@ using Microsoft.Toolkit.HighPerformance.Buffers;
 using System.Buffers;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
@@ -498,20 +497,16 @@ namespace ByteTerrace.Ouroboros.Core
                     do {
                         offset += m_increment;
 
-                        var foundMatch = charIndexState.MoveNext(
+                        if (charIndexState.MoveNext(
                             searchVector: LoadVector256(ref buffer, offset),
                             value0: m_delimiterVector,
                             value1: m_escapeSentinelVector
-                        );
-
-                        if (foundMatch) {
+                        )) {
                             m_current = (offset + charIndexState.GetCurrentIndex());
                             m_increment = 16;
 
                             return true;
                         }
-
-                        m_increment = 16;
                     } while (offset < length);
                 }
 
@@ -523,7 +518,7 @@ namespace ByteTerrace.Ouroboros.Core
                         var c = Unsafe.Add(ref buffer, offset);
 
                         if ((delimiter == c) || (escapeSentinel == c)) {
-                            m_current = offset;
+                            m_current = offset++;
 
                             return true;
                         }
