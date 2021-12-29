@@ -462,131 +462,76 @@ namespace ByteTerrace.Ouroboros.Core
             return ((int)result);
         }
 
-        private ref struct CharIndexState
+        internal ref struct DelimitState
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private static int GetMask(Vector128<ushort> searchVector, Vector128<ushort> value0Vector, Vector128<ushort> value1Vector) {
-                var result = Sse2.MoveMask(Sse2.CompareEqual(value0Vector, searchVector).AsByte());
+            private readonly Vector256<ushort> m_delimiterVector;
+            private readonly Vector256<ushort> m_escapeSentinelVector;
 
-                result |= Sse2.MoveMask(Sse2.CompareEqual(value1Vector, searchVector).AsByte());
-                result &= 0b01010101010101010101010101010101;
+            private CharIndexState m_charIndexState;
+            private int m_current;
+            private int m_increment;
 
-                return result;
-            }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private static int GetMask(Vector256<ushort> searchVector, Vector256<ushort> value0Vector, Vector256<ushort> value1Vector) {
-                var result = Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte());
-
-                result |= Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte());
-                result &= 0b01010101010101010101010101010101;
-
-                return result;
+            public int Current {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => m_current;
             }
 
-            private uint Mask { get; set; }
-
-            public uint BeginIndex { get; private set; }
-            public uint EndIndex { get; private set; }
-
-            public CharIndexState(uint beginIndex, uint endIndex, uint indexMask) {
-                BeginIndex = beginIndex;
-                EndIndex = endIndex;
-                Mask = indexMask;
-            }
-            public CharIndexState() : this(beginIndex: 0U, endIndex: 0U, indexMask: 0U) { }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public uint GetCurrentIndex() {
-                return (Bmi1.TrailingZeroCount(Mask) >> 1);
-            }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public bool MoveNext() {
-                return (0 != (Mask = Bmi1.ResetLowestSetBit(Mask)));
-            }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public bool MoveNext(Vector128<ushort> searchVector, Vector128<ushort> value0, Vector128<ushort> value1) {
-                return (0 != (Mask = ((uint)GetMask(searchVector, value0, value1))));
-            }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public bool MoveNext(Vector256<ushort> searchVector, Vector256<ushort> value0, Vector256<ushort> value1) {
-                return (0 != (Mask = ((uint)GetMask(searchVector, value0, value1))));
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        internal static unsafe int DelimitN(this ref ArrayPoolList<uint> arrayPoolList, ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
-            var length = input.Length;
-            var offset = ((nint)0);
-            var state = new CharIndexState();
-
-            ref var inputRef = ref MemoryMarshal.GetReference(input.Span);
-
-            if (Avx2.IsSupported) {
-                const int Vector128Increment = 8;
-                const int Vector256Increment = 16;
-
-                if (15 < length) {
-                    if (0 != (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref inputRef, offset))) & (Vector256<byte>.Count - 1))) {
-                        if (arrayPoolList.Capacity <= (arrayPoolList.Length + Vector128Increment)) {
-                            arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + Vector128Increment) << 1));
-                        }
-
-                        if (state.MoveNext(
-                            searchVector: LoadVector128(ref inputRef, offset),
-                            value0: Vector128.Create(delimiter),
-                            value1: Vector128.Create(escapeSentinel)
-                        )) {
-                            do {
-                                arrayPoolList.AddUnsafe(((uint)offset) + state.GetCurrentIndex());
-                            } while (state.MoveNext());
-                        }
-
-                        offset += Vector128Increment;
-                    }
-
-                    var loopIndex = 0;
-                    var loopLimit = ((length - ((int)offset)) / Vector256Increment);
-
-                    if (loopIndex < loopLimit) {
-                        var delimiterVector = Vector256.Create(delimiter);
-                        var escapeSentinelVector = Vector256.Create(escapeSentinel);
-
-                        do {
-                            if (arrayPoolList.Capacity <= (arrayPoolList.Length + Vector256Increment)) {
-                                arrayPoolList.Resize(minimumSize: ((arrayPoolList.Capacity + Vector256Increment) << 1));
-                            }
-
-                            if (state.MoveNext(
-                                searchVector: LoadVector256(ref inputRef, offset),
-                                value0: delimiterVector,
-                                value1: escapeSentinelVector
-                            )) {
-                                do {
-                                    arrayPoolList.AddUnsafe(((uint)offset) + state.GetCurrentIndex());
-                                } while (state.MoveNext());
-                            }
-
-                            offset += Vector256Increment;
-                        } while (++loopIndex < loopLimit);
-                    }
-                }
+            public DelimitState(char delimiter, char escapeSentinel) {
+                m_charIndexState = new CharIndexState(indexMask: 0U);
+                m_current = 0;
+                m_delimiterVector = Vector256.Create(delimiter);
+                m_escapeSentinelVector = Vector256.Create(escapeSentinel);
+                m_increment = 0;
             }
 
-            if (arrayPoolList.Capacity <= (arrayPoolList.Length + (length - offset))) {
-                arrayPoolList.Resize(minimumSize: (arrayPoolList.Length + ((int)(length - offset))));
-            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+            public bool MoveNext(ref char buffer, ref int offset, int length) {
+                ref var charIndexState = ref m_charIndexState;
 
-            while (offset < length) {
-                ref var c = ref Unsafe.Add(ref inputRef, offset);
+                if (charIndexState.MoveNext()) {
+                    m_current = (offset + charIndexState.GetCurrentIndex());
 
-                if ((delimiter == c) || (escapeSentinel == c)) {
-                    arrayPoolList.Add((uint)offset);
+                    return true;
                 }
 
-                ++offset;
-            }
+                if ((offset + 15) < length) {
+                    do {
+                        offset += m_increment;
 
-            return arrayPoolList.Length;
+                        var foundMatch = charIndexState.MoveNext(
+                            searchVector: LoadVector256(ref buffer, offset),
+                            value0: m_delimiterVector,
+                            value1: m_escapeSentinelVector
+                        );
+
+                        if (foundMatch) {
+                            m_current = (offset + charIndexState.GetCurrentIndex());
+                            m_increment = 16;
+
+                            return true;
+                        }
+
+                        m_increment = 16;
+                    } while (offset < length);
+                }
+
+                if ((offset + 1) < length) {
+                    var delimiter = ((char)m_delimiterVector.GetElement(0));
+                    var escapeSentinel = ((char)m_escapeSentinelVector.GetElement(0));
+
+                    do {
+                        var c = Unsafe.Add(ref buffer, offset);
+
+                        if ((delimiter == c) || (escapeSentinel == c)) {
+                            m_current = offset;
+
+                            return true;
+                        }
+                    } while (++offset < length);
+                }
+
+                return false;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]

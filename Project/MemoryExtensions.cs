@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using static ByteTerrace.Ouroboros.Core.SpanExtensions;
 
 namespace ByteTerrace.Ouroboros.Core
 {
@@ -42,105 +43,72 @@ namespace ByteTerrace.Ouroboros.Core
         /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
         [SkipLocalsInit]
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
-            var controlIndices = new ArrayPoolList<uint>(stackalloc uint[256]);
+            var beginIndex = 0;
+            var endIndex = 0;
+            var escapeSentinelRunCount = 0;
+            var inputSpan = input.Span;
             var length = input.Length;
-            var loopLimit = controlIndices.BuildIndicesList(
-                input: ref MemoryMarshal.GetReference(input.Span),
-                length: length,
-                value0: delimiter,
-                value1: escapeSentinel
-            );
+            var offset = 0;
+            var result = new ReadOnlyMemory<char>[330];
+            var resultIndex = 0;
+            var state = new DelimitState(delimiter, escapeSentinel);
+            var stringBuilder = ReadOnlyMemory<char>.Empty;
 
-            if (0 < loopLimit) {
-                var beginIndex = 0;
-                var endIndex = 0;
-                var escapeSentinelRunLength = 0;
-                var inputSpan = input.Span;
-                var loopIndex = 0;
-                var stringBuilder = ReadOnlyMemory<char>.Empty;
-                var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
-                var resultIndex = 0;
+            ref var inputRef = ref MemoryMarshal.GetReference(inputSpan);
 
-                do {
-                    endIndex = ((int)controlIndices[loopIndex++]);
-
-                    if (delimiter == inputSpan[endIndex]) { // isDelimiter
-                        endIndex &= 0b01111111111111111111111111111111;
-
+            while (state.MoveNext(ref inputRef, ref offset, length)) {
+                if (delimiter == inputSpan[state.Current]) {
+                    if (0 == (escapeSentinelRunCount & 1)) {
                         if (stringBuilder.IsEmpty) {
-                            result[resultIndex] = input[beginIndex..endIndex];
+
+                        }
+                        else {
+                            if (beginIndex == endIndex) {
+                                result[resultIndex++] = stringBuilder;
+                                stringBuilder = ReadOnlyMemory<char>.Empty;
+                            }
+                            else {
+
+                            }
+                        }
+                    }
+                    else {
+
+                    }
+                }
+                else {
+                    beginIndex = state.Current;
+                    ++escapeSentinelRunCount;
+
+                    if (state.MoveNext(ref inputRef, ref offset, length)) {
+                        if (delimiter == inputSpan[state.Current]) {
+                            if (0 == (escapeSentinelRunCount & 1)) {
+
+                            }
+                            else {
+
+                            }
                         }
                         else {
                             ++beginIndex;
+                            ++escapeSentinelRunCount;
 
-                            if (beginIndex == endIndex) {
-                                if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
-                                    result[resultIndex] = stringBuilder;
-                                }
+                            if (0 == (escapeSentinelRunCount & 1)) {
+                                endIndex = state.Current;
+
+                                stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
+
+                                beginIndex = endIndex;
                             }
                             else {
-                                result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
-                            }
-                        }
 
-                        beginIndex = (endIndex + 1);
-                        ++resultIndex;
-                        stringBuilder = ReadOnlyMemory<char>.Empty;
-                    }
-                    else if (loopIndex < loopLimit) {
-                        ++escapeSentinelRunLength;
-
-                        if (delimiter == inputSpan[(int)controlIndices[loopIndex]]) { // isDelimiter
-                            if (1 == (escapeSentinelRunLength & 1)) { // isOddEscapeSentinelRun
-                                ++loopIndex;
                             }
-                            else if (1 != (endIndex - beginIndex)) {
-                                ++beginIndex;
-                            }
-                        }
-                        else if (0 == (escapeSentinelRunLength & 1)) { // isEvenEscapeSentinelRun
-                            if (1 != (endIndex - beginIndex)) { // isStringSegment
-                                ++beginIndex;
-                            }
-                            else { // isEscapeSentinelLiteral
-                                beginIndex = endIndex;
-                                ++endIndex;
-                                ++loopIndex;
-                            }
-                        }
-
-                        if (beginIndex < endIndex) {
-                            stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
-                            beginIndex = endIndex;
                         }
                     }
-                } while (loopIndex < loopLimit);
-
-                if ((escapeSentinel == input.Span[(int)controlIndices[^1]]) && ((2 != (length - beginIndex)) || (1 != (length - endIndex)))) {
-                    ++beginIndex;
                 }
-
-                if (1 < (length - endIndex)) {
-                    endIndex = length;
-                }
-
-                if (beginIndex < endIndex) {
-                    stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
-                }
-
-                if (!stringBuilder.IsEmpty && (1 != stringBuilder.Length || escapeSentinel != stringBuilder.Span[0])) {
-                    result[resultIndex] = stringBuilder;
-                }
-
-                controlIndices.Dispose();
-
-                return result.AsMemory()[..(resultIndex + 1)];
             }
-            else {
-                controlIndices.Dispose();
 
-                return new ReadOnlyMemory<char>[1] { input, }.AsMemory();
-            }
+            return result.AsMemory()[..(resultIndex + 1)];
         }
         /// <summary>
         /// 
