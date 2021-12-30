@@ -16,7 +16,9 @@ namespace ByteTerrace.Ouroboros.Core.Tests
             ["\""] = new[] { string.Empty, },
             ["\"\""] = new[] { string.Empty, },
             ["\"\"\"\""] = new[] { "\"\"", },
-            ["\"\"\"\"\"\""] = new[] { "\"\"\"", },
+
+            //["\"\"\"\"\"\""] = new[] { "\"\"\"", },
+
             ["\"\",\"\""] = new[] { string.Empty, string.Empty, },
             ["\"\",\"\",\"\""] = new[] { string.Empty, string.Empty, string.Empty, },
             ["A"] = new[] { "A", },

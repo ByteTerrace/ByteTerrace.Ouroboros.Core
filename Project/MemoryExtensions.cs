@@ -1,7 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-
-using static ByteTerrace.Ouroboros.Core.SpanExtensions;
+using System.Runtime.Intrinsics;
 
 namespace ByteTerrace.Ouroboros.Core
 {
@@ -44,92 +43,101 @@ namespace ByteTerrace.Ouroboros.Core
         /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
             var beginIndex = 0;
-            var endIndex = 0;
-            var escapeSentinelRunCount = 0;
+            var delimiterVector = Vector256.Create(delimiter);
+            var escapeSentinelVector = Vector256.Create(escapeSentinel);
             var length = input.Length;
             var offset = 0;
             var result = new ReadOnlyMemory<char>[330];
             var resultIndex = 0;
             var span = input.Span;
-            var state = new DelimitState(delimiter, escapeSentinel);
-            var stringBuilder = ReadOnlyMemory<char>.Empty;
+            var state = new CharIndexState();
 
-            while (state.MoveNext(ref MemoryMarshal.GetReference(span), ref offset, length)) {
-                if (delimiter == span[state.Current]) { // isDelimiter
-                    if (0 == (escapeSentinelRunCount & 1)) { // isEvenEscapeSentinelRunCount
-                        if (stringBuilder.IsEmpty) {
-                            if (beginIndex < endIndex) {
+            while (state.MoveNext(ref MemoryMarshal.GetReference(span), ref offset, length, delimiterVector, escapeSentinelVector)) {
+                if (delimiter == span[state.Current]) {
+                    result[resultIndex] = input[beginIndex..state.Current];
+                    beginIndex = (state.Current + 1);
+                    ++resultIndex;
+                }
+                else {
+                    var escapeSentinelRunLength = 1;
+                    var isDelimiter = false;
+                    var stringBuilder = ReadOnlyMemory<char>.Empty;
 
+                    if (beginIndex < state.Current) {
+                        stringBuilder = input[beginIndex..state.Current];
+                    }
+
+                    ++beginIndex;
+
+                    while (state.MoveNext(ref MemoryMarshal.GetReference(span), ref offset, length, delimiterVector, escapeSentinelVector)) {
+                        isDelimiter = (delimiter == span[state.Current]);
+
+                        if (isDelimiter) {
+                            if (0 == (escapeSentinelRunLength & 1)) {
+                                break;
+                            }
+                            else {
+                                stringBuilder = stringBuilder.Concat(input[beginIndex..(state.Current + 1)]);
+                                beginIndex = (state.Current + 1);
                             }
                         }
                         else {
-                            if (beginIndex == endIndex) {
-                                result[resultIndex] = stringBuilder;
-                                stringBuilder = ReadOnlyMemory<char>.Empty;
+                            ++escapeSentinelRunLength;
+
+                            var delta = (state.Current - beginIndex);
+
+                            if (0 != delta) {
+                                stringBuilder = stringBuilder.Concat(input.Slice(beginIndex, delta));
                             }
                             else {
-
+                                stringBuilder = stringBuilder.Concat(input.Slice(beginIndex, 1));
                             }
-                        }
 
-                        ++resultIndex;
+                            beginIndex = (state.Current + 1);
+                        }
                     }
-                    else { // isOddEscapeSentinelRunCount
 
+                    if (isDelimiter) {
+                        if (beginIndex < state.Current) {
+                            stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
+                        }
+
+                        if ((1 == stringBuilder.Length) && (escapeSentinel == stringBuilder.Span[0])) {
+                            stringBuilder = ReadOnlyMemory<char>.Empty;
+                        }
+
+                        result[resultIndex++] = stringBuilder;
+                        beginIndex = (state.Current + 1);
                     }
-                }
-                else { // isEscapeSentinel
-                    beginIndex = state.Current;
-                    ++escapeSentinelRunCount;
-
-                    if (state.MoveNext(ref MemoryMarshal.GetReference(span), ref offset, length)) {
-                        if (delimiter == span[state.Current]) { // isDelimiter
-                            if (0 == (escapeSentinelRunCount & 1)) { // isEvenEscapeSentinelRunCount
-
-                            }
-                            else { // isOddEscapeSentinelRunCount
-
+                    else {
+                        if (-1 == state.Current) {
+                            if (beginIndex < length) {
+                                stringBuilder = stringBuilder.Concat(input[beginIndex..]);
                             }
                         }
-                        else { // isEscapeSentinel
-                            ++beginIndex;
-                            ++escapeSentinelRunCount;
-
-                            if (0 == (escapeSentinelRunCount & 1)) { // isEvenEscapeSentinelRunCount
-                                endIndex = state.Current;
-                                stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
-                                beginIndex = endIndex;
-                            }
-                            else { // isOddEscapeSentinelRunCount
-
-                            }
+                        else if (beginIndex < state.Current) {
+                            stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
                         }
+
+                        result[resultIndex++] = stringBuilder;
+                        beginIndex = length;
                     }
                 }
             }
 
-            if (offset < length) {
-                if (delimiter == span[offset]) { // isDelimiter
-                    if (0 == (escapeSentinelRunCount & 1)) { // isEvenEscapeSentinelRunCount
-                        ++resultIndex;
-                    }
-                    else { // isOddEscapeSentinelRunCount
-
-                    }
-                }
-                else { // isEscapeSentinel
-                    beginIndex = offset;
-                    ++escapeSentinelRunCount;
-
-                    if (0 == (escapeSentinelRunCount & 1)) { // isEvenEscapeSentinelRunCount
-                    }
-                    else { // isOddEscapeSentinelRunCount
-
-                    }
+            if (-1 == state.Current) {
+                if (beginIndex < length) {
+                    result[resultIndex++] = input[beginIndex..];
                 }
             }
+            else if (delimiter == span[state.Current]) {
+                resultIndex += 2;
+            }
+            else {
+                resultIndex += 1;
+            }
 
-            return result.AsMemory()[..(resultIndex + 1)];
+            return result.AsMemory()[..resultIndex];
         }
         /// <summary>
         /// 
