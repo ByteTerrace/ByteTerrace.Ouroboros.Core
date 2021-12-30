@@ -41,6 +41,7 @@ namespace ByteTerrace.Ouroboros.Core
         /// <param name="delimiter">A character that delimits regions within this input.</param>
         /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped subregion.</param>
         /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
             var beginIndex = 0;
             var cells = new ReadOnlyMemory<char>[330];
@@ -52,7 +53,9 @@ namespace ByteTerrace.Ouroboros.Core
             var span = input.Span;
             var state = new CharIndexState();
 
-            while (state.MoveNext(ref MemoryMarshal.GetReference(span), ref offset, length, delimiterVector, escapeSentinelVector)) {
+            ref var spanRef = ref MemoryMarshal.GetReference(span);
+
+            while (state.MoveNext(ref spanRef, ref offset, length, delimiterVector, escapeSentinelVector)) {
                 if (delimiter == span[state.Current]) {
                     cells[cellIndex] = input[beginIndex..state.Current];
                     beginIndex = (state.Current + 1);
@@ -62,6 +65,7 @@ namespace ByteTerrace.Ouroboros.Core
                     var escapeSentinelRunLength = 1;
                     var previousEscapeSentinelIndex = state.Current;
                     var stringBuilder = ReadOnlyMemory<char>.Empty;
+                    var withinEscapedCell = true;
 
                     if (beginIndex < state.Current) {
                         stringBuilder = input[beginIndex..state.Current];
@@ -70,8 +74,8 @@ namespace ByteTerrace.Ouroboros.Core
 
                     ++beginIndex;
 
-                    do { // TODO: Figure out if there is a less disgusting way to express this loop (see below).
-                        if (state.MoveNext(ref MemoryMarshal.GetReference(span), ref offset, length, delimiterVector, escapeSentinelVector)) {
+                    do {
+                        if (state.MoveNext(ref spanRef, ref offset, length, delimiterVector, escapeSentinelVector)) {
                             if (delimiter == span[state.Current]) { // current char is delimiter
                                 if (0 == (escapeSentinelRunLength & 1)) { // end of cell
                                     if (beginIndex < state.Current) {
@@ -80,10 +84,9 @@ namespace ByteTerrace.Ouroboros.Core
                                     }
 
                                     cells[cellIndex] = stringBuilder;
+                                    withinEscapedCell = false;
                                     ++beginIndex;
                                     ++cellIndex;
-
-                                    break;
                                 }
                                 else { // escaped string segment
                                     stringBuilder = stringBuilder.Concat(input[beginIndex..(state.Current + 1)]);
@@ -94,7 +97,7 @@ namespace ByteTerrace.Ouroboros.Core
                                 ++escapeSentinelRunLength;
 
                                 if (1 == (state.Current - previousEscapeSentinelIndex)) { // escape sentinel literal "["]XYZ or XYZ"["]
-                                    beginIndex = previousEscapeSentinelIndex;
+                                    --beginIndex;
                                 }
 
                                 previousEscapeSentinelIndex = state.Current;
@@ -115,11 +118,11 @@ namespace ByteTerrace.Ouroboros.Core
                             }
 
                             cells[cellIndex] = stringBuilder;
+                            withinEscapedCell = false;
                             ++beginIndex;
                             ++cellIndex;
-                            break;
                         }
-                    } while (true); // ewww...
+                    } while (withinEscapedCell);
                 }
             }
 
