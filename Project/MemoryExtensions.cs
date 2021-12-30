@@ -43,6 +43,10 @@ namespace ByteTerrace.Ouroboros.Core
         /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
+            if (input.IsEmpty) {
+                return new[] { input, };
+            }
+
             var beginIndex = 0;
             var cells = new ReadOnlyMemory<char>[330];
             var cellIndex = 0;
@@ -83,7 +87,10 @@ namespace ByteTerrace.Ouroboros.Core
                                         beginIndex = state.Current;
                                     }
 
-                                    cells[cellIndex] = stringBuilder;
+                                    if ((1 != stringBuilder.Length || escapeSentinel != stringBuilder.Span[0])) {
+                                        cells[cellIndex] = stringBuilder;
+                                    }
+
                                     withinEscapedCell = false;
                                     ++beginIndex;
                                     ++cellIndex;
@@ -117,7 +124,10 @@ namespace ByteTerrace.Ouroboros.Core
                                 beginIndex = length;
                             }
 
-                            cells[cellIndex] = stringBuilder;
+                            if ((1 != stringBuilder.Length || escapeSentinel != stringBuilder.Span[0])) {
+                                cells[cellIndex] = stringBuilder;
+                            }
+
                             withinEscapedCell = false;
                             ++beginIndex;
                             ++cellIndex;
@@ -126,8 +136,16 @@ namespace ByteTerrace.Ouroboros.Core
                 }
             }
 
-            if ((-1 == state.Current) && (beginIndex < length)) {
+            if ((-1 == state.Current) && (beginIndex < length)) { // remainder cell
                 cells[cellIndex++] = input[beginIndex..];
+            }
+            else if (beginIndex == state.Current) { // remainder control character
+                if (delimiter == span[state.Current]) { // remainder char is delimiter
+                    cellIndex += 2;
+                }
+                else { // remainder char is escape sentinel
+                    cellIndex += 1;
+                }
             }
 
             return cells.AsMemory()[..cellIndex];
