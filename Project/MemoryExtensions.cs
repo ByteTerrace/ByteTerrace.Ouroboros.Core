@@ -105,9 +105,12 @@ namespace ByteTerrace.Ouroboros.Core
 
                                 if (1 == (state.Current - previousEscapeSentinelIndex)) { // escape sentinel literal "["]XYZ or XYZ"["]
                                     --beginIndex;
+                                    previousEscapeSentinelIndex = -1;
+                                }
+                                else {
+                                    previousEscapeSentinelIndex = state.Current;
                                 }
 
-                                previousEscapeSentinelIndex = state.Current;
                                 stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
                                 beginIndex = (state.Current + 1);
                             }
