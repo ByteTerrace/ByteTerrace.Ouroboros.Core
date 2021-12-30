@@ -43,101 +43,91 @@ namespace ByteTerrace.Ouroboros.Core
         /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
             var beginIndex = 0;
+            var cells = new ReadOnlyMemory<char>[330];
+            var cellIndex = 0;
             var delimiterVector = Vector256.Create(delimiter);
             var escapeSentinelVector = Vector256.Create(escapeSentinel);
             var length = input.Length;
             var offset = 0;
-            var result = new ReadOnlyMemory<char>[330];
-            var resultIndex = 0;
             var span = input.Span;
             var state = new CharIndexState();
 
             while (state.MoveNext(ref MemoryMarshal.GetReference(span), ref offset, length, delimiterVector, escapeSentinelVector)) {
                 if (delimiter == span[state.Current]) {
-                    result[resultIndex] = input[beginIndex..state.Current];
+                    cells[cellIndex] = input[beginIndex..state.Current];
                     beginIndex = (state.Current + 1);
-                    ++resultIndex;
+                    ++cellIndex;
                 }
                 else {
                     var escapeSentinelRunLength = 1;
-                    var isDelimiter = false;
+                    var previousEscapeSentinelIndex = state.Current;
                     var stringBuilder = ReadOnlyMemory<char>.Empty;
 
                     if (beginIndex < state.Current) {
                         stringBuilder = input[beginIndex..state.Current];
+                        beginIndex = state.Current;
                     }
 
                     ++beginIndex;
 
-                    while (state.MoveNext(ref MemoryMarshal.GetReference(span), ref offset, length, delimiterVector, escapeSentinelVector)) {
-                        isDelimiter = (delimiter == span[state.Current]);
+                    do { // TODO: Figure out if there is a less disgusting way to express this loop (see below).
+                        if (state.MoveNext(ref MemoryMarshal.GetReference(span), ref offset, length, delimiterVector, escapeSentinelVector)) {
+                            if (delimiter == span[state.Current]) { // current char is delimiter
+                                if (0 == (escapeSentinelRunLength & 1)) { // end of cell
+                                    if (beginIndex < state.Current) {
+                                        stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
+                                        beginIndex = state.Current;
+                                    }
 
-                        if (isDelimiter) {
-                            if (0 == (escapeSentinelRunLength & 1)) {
-                                break;
+                                    cells[cellIndex] = stringBuilder;
+                                    ++beginIndex;
+                                    ++cellIndex;
+
+                                    break;
+                                }
+                                else { // escaped string segment
+                                    stringBuilder = stringBuilder.Concat(input[beginIndex..(state.Current + 1)]);
+                                    beginIndex = (state.Current + 1);
+                                }
                             }
-                            else {
-                                stringBuilder = stringBuilder.Concat(input[beginIndex..(state.Current + 1)]);
+                            else { // current char is escape sentinel
+                                ++escapeSentinelRunLength;
+
+                                if (1 == (state.Current - previousEscapeSentinelIndex)) { // escape sentinel literal "["]XYZ or XYZ"["]
+                                    beginIndex = previousEscapeSentinelIndex;
+                                }
+
+                                previousEscapeSentinelIndex = state.Current;
+                                stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
                                 beginIndex = (state.Current + 1);
                             }
                         }
                         else {
-                            ++escapeSentinelRunLength;
-
-                            var delta = (state.Current - beginIndex);
-
-                            if (0 != delta) {
-                                stringBuilder = stringBuilder.Concat(input.Slice(beginIndex, delta));
+                            if (beginIndex < state.Current) { // trailing escape sentinel: "XYZ["]
+                                stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
+                                beginIndex = state.Current;
                             }
-                            else {
-                                stringBuilder = stringBuilder.Concat(input.Slice(beginIndex, 1));
-                            }
-
-                            beginIndex = (state.Current + 1);
-                        }
-                    }
-
-                    if (isDelimiter) {
-                        if (beginIndex < state.Current) {
-                            stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
-                        }
-
-                        if ((1 == stringBuilder.Length) && (escapeSentinel == stringBuilder.Span[0])) {
-                            stringBuilder = ReadOnlyMemory<char>.Empty;
-                        }
-
-                        result[resultIndex++] = stringBuilder;
-                        beginIndex = (state.Current + 1);
-                    }
-                    else {
-                        if (-1 == state.Current) {
-                            if (beginIndex < length) {
+                            else if ((-1 == state.Current) // trailing string segment: ""[XYZ]
+                            || (1 == (state.Current - previousEscapeSentinelIndex)) // trailing escape sentinel literal: XYZ"["]
+                            ) {
                                 stringBuilder = stringBuilder.Concat(input[beginIndex..]);
+                                beginIndex = length;
                             }
-                        }
-                        else if (beginIndex < state.Current) {
-                            stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
-                        }
 
-                        result[resultIndex++] = stringBuilder;
-                        beginIndex = length;
-                    }
+                            cells[cellIndex] = stringBuilder;
+                            ++beginIndex;
+                            ++cellIndex;
+                            break;
+                        }
+                    } while (true); // ewww...
                 }
             }
 
-            if (-1 == state.Current) {
-                if (beginIndex < length) {
-                    result[resultIndex++] = input[beginIndex..];
-                }
-            }
-            else if (delimiter == span[state.Current]) {
-                resultIndex += 2;
-            }
-            else {
-                resultIndex += 1;
+            if ((-1 == state.Current) && (beginIndex < length)) {
+                cells[cellIndex++] = input[beginIndex..];
             }
 
-            return result.AsMemory()[..resultIndex];
+            return cells.AsMemory()[..cellIndex];
         }
         /// <summary>
         /// 

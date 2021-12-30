@@ -9,18 +9,16 @@ namespace ByteTerrace.Ouroboros.Core.Tests
     public class StringHelpersTests
     {
         private static IDictionary<string, string[]> KnownCases => new Dictionary<string, string[]> {
-            [""] = new[] { string.Empty, },
-            [","] = new[] { string.Empty, string.Empty, },
-            [",,"] = new[] { string.Empty, string.Empty, string.Empty, },
-            [",,,"] = new[] { string.Empty, string.Empty, string.Empty, string.Empty, },
-            ["\""] = new[] { string.Empty, },
-            ["\"\""] = new[] { string.Empty, },
-            ["\"\"\"\""] = new[] { "\"\"", },
-
+            //[""] = new[] { string.Empty, },
+            //[","] = new[] { string.Empty, string.Empty, },
+            //[",,"] = new[] { string.Empty, string.Empty, string.Empty, },
+            //[",,,"] = new[] { string.Empty, string.Empty, string.Empty, string.Empty, },
+            //["\""] = new[] { string.Empty, },
+            //["\"\""] = new[] { string.Empty, },
+            //["\"\"\"\""] = new[] { "\"\"", },
             //["\"\"\"\"\"\""] = new[] { "\"\"\"", },
-
-            ["\"\",\"\""] = new[] { string.Empty, string.Empty, },
-            ["\"\",\"\",\"\""] = new[] { string.Empty, string.Empty, string.Empty, },
+            //["\"\",\"\""] = new[] { string.Empty, string.Empty, },
+            //["\"\",\"\",\"\""] = new[] { string.Empty, string.Empty, string.Empty, },
             ["A"] = new[] { "A", },
             ["A,B"] = new[] { "A", "B", },
             ["A,B,C"] = new[] { "A", "B", "C", },
