@@ -35,6 +35,25 @@ namespace ByteTerrace.Ouroboros.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int ComputeControlCharIndex() =>
             (m_bufferIndex + ((int)(Bmi1.TrailingZeroCount(m_bufferMask) >> 1)));
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool TryFindNextControlChar() =>
+            (0 != (m_bufferMask = Bmi1.ResetLowestSetBit(m_bufferMask)));
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        private bool TryFindNextControlChar(char delimiter, char escapeSentinel) {
+            if (m_bufferOffset < m_numberOfCharsRead) {
+                ref var buffer = ref MemoryMarshal.GetReference(m_buffer.AsSpan());
+
+                do {
+                    var c = Unsafe.Add(ref buffer, m_bufferOffset);
+
+                    if ((delimiter == c) || (escapeSentinel == c) || ('\n' == c) || ('\r' == c)) {
+                        return (++m_bufferOffset < m_numberOfCharsRead);
+                    }
+                } while (++m_bufferOffset < m_numberOfCharsRead);
+            }
+
+            return false;
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         private bool TryFindNextControlChar(char delimiter, char escapeSentinel, TextReader reader) {
             if (TryFindNextControlChar()
@@ -60,22 +79,6 @@ namespace ByteTerrace.Ouroboros.Core
                     )
                 ) { return true; }
             } while (0 != m_numberOfCharsRead);
-
-            return false;
-        }
-        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        private bool TryFindNextControlChar(char delimiter, char escapeSentinel) {
-            if (m_bufferOffset < m_numberOfCharsRead) {
-                ref var buffer = ref MemoryMarshal.GetReference(m_buffer.AsSpan());
-
-                do {
-                    var c = Unsafe.Add(ref buffer, m_bufferOffset);
-
-                    if ((delimiter == c) || (escapeSentinel == c) || ('\n' == c) || ('\r' == c)) {
-                        return (++m_bufferOffset < m_numberOfCharsRead);
-                    }
-                } while (++m_bufferOffset < m_numberOfCharsRead);
-            }
 
             return false;
         }
@@ -111,9 +114,6 @@ namespace ByteTerrace.Ouroboros.Core
 
             return false;
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool TryFindNextControlChar() =>
-            (0 != (m_bufferMask = Bmi1.ResetLowestSetBit(m_bufferMask)));
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public ReadOnlyMemory<ReadOnlyMemory<char>> ReadNextRecord(TextReader reader, char delimiter, char escapeSentinel) {
