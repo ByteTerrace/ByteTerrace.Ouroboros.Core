@@ -21,7 +21,7 @@ namespace ByteTerrace.Ouroboros.Core
 
         public CsvReaderState(Span<char> buffer, char delimiter, char escapeSentinel) {
             m_buffer = buffer;
-            m_bufferIndex = -16;
+            m_bufferIndex = 0;
             m_bufferMask = 0U;
             m_bufferOffset = buffer.Length;
             m_currentControlCharIndex = -1;
@@ -41,6 +41,7 @@ namespace ByteTerrace.Ouroboros.Core
             (m_bufferIndex + ((int)(Bmi1.TrailingZeroCount(m_bufferMask) >> 1)));
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool TryFillBuffer(TextReader reader) {
+            m_bufferIndex = -16;
             m_bufferOffset = 0;
             m_numberOfCharsRead = reader.Read(m_buffer);
 
