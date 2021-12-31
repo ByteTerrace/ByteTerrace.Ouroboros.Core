@@ -37,31 +37,19 @@ namespace ByteTerrace.Ouroboros.Core
         private bool CanReadFromBuffer16() =>
            ((m_bufferOffset + 15) < m_numberOfCharsRead);
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int ComputeControlCharIndex() =>
+            (m_bufferIndex + ((int)(Bmi1.TrailingZeroCount(m_bufferMask) >> 1)));
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool TryFillBuffer(TextReader reader) {
             m_bufferOffset = 0;
             m_numberOfCharsRead = reader.Read(m_buffer);
 
             return (0 < m_numberOfCharsRead);
         }
-
-        public ReadOnlyMemory<ReadOnlyMemory<char>> ReadNextRecord(TextReader reader) {
-            while (TryFindNextControlCharacter(reader)) {
-                if (m_delimiter == m_buffer[m_currentControlCharIndex]) {
-                }
-                else if (m_escapeSentinel == m_buffer[m_currentControlCharIndex]) {
-                }
-                else if ('\n' == m_buffer[m_currentControlCharIndex]) {
-                }
-                else if ('\r' == m_buffer[m_currentControlCharIndex]) {
-                }
-            }
-
-            return ReadOnlyMemory<ReadOnlyMemory<char>>.Empty;
-        }
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public bool TryFindNextControlCharacter(TextReader reader) {
-            if (0 != (m_bufferMask = Bmi1.ResetLowestSetBit(m_bufferMask))) {
-                m_currentControlCharIndex = (m_bufferIndex + ((int)(Bmi1.TrailingZeroCount(m_bufferMask) >> 1)));
+        private bool TryFindNextControlCharacter(TextReader reader) {
+            if (TryReadMask()) {
+                m_currentControlCharIndex = ComputeControlCharIndex();
 
                 return true;
             }
@@ -86,7 +74,7 @@ namespace ByteTerrace.Ouroboros.Core
 
                     if (0 != bufferMask) {
                         m_bufferMask = ((uint)bufferMask);
-                        m_currentControlCharIndex = (m_bufferIndex + ((int)(Bmi1.TrailingZeroCount(m_bufferMask) >> 1)));
+                        m_currentControlCharIndex = ComputeControlCharIndex();
 
                         return true;
                     }
@@ -110,6 +98,24 @@ namespace ByteTerrace.Ouroboros.Core
             m_currentControlCharIndex = -1;
 
             return false;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool TryReadMask() =>
+            (0 != (m_bufferMask = Bmi1.ResetLowestSetBit(m_bufferMask)));
+
+        public ReadOnlyMemory<ReadOnlyMemory<char>> ReadNextRecord(TextReader reader) {
+            while (TryFindNextControlCharacter(reader)) {
+                if (m_delimiter == m_buffer[m_currentControlCharIndex]) {
+                }
+                else if (m_escapeSentinel == m_buffer[m_currentControlCharIndex]) {
+                }
+                else if ('\n' == m_buffer[m_currentControlCharIndex]) {
+                }
+                else if ('\r' == m_buffer[m_currentControlCharIndex]) {
+                }
+            }
+
+            return ReadOnlyMemory<ReadOnlyMemory<char>>.Empty;
         }
     }
 }
