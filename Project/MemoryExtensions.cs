@@ -48,7 +48,7 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             var beginIndex = 0;
-            var cells = new ReadOnlyMemory<char>[330];
+            var cells = new ReadOnlyMemory<char>[32];
             var cellIndex = 0;
             var delimiterVector = Vector256.Create(delimiter);
             var escapeSentinelVector = Vector256.Create(escapeSentinel);
@@ -61,6 +61,10 @@ namespace ByteTerrace.Ouroboros.Core
 
             while (state.MoveNext(ref spanRef, ref offset, length, delimiterVector, escapeSentinelVector)) {
                 if (delimiter == span[state.Current]) {
+                    if (cellIndex == cells.Length) {
+                        Array.Resize(ref cells, (cells.Length << 1));
+                    }
+
                     cells[cellIndex] = input[beginIndex..state.Current];
                     beginIndex = (state.Current + 1);
                     ++cellIndex;
@@ -85,6 +89,10 @@ namespace ByteTerrace.Ouroboros.Core
                                     if (beginIndex < state.Current) {
                                         stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
                                         beginIndex = state.Current;
+                                    }
+
+                                    if (cellIndex == cells.Length) {
+                                        Array.Resize(ref cells, (cells.Length << 1));
                                     }
 
                                     if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
