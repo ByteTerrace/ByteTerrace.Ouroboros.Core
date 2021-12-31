@@ -87,7 +87,7 @@ namespace ByteTerrace.Ouroboros.Core
                                         beginIndex = state.Current;
                                     }
 
-                                    if ((1 != stringBuilder.Length || escapeSentinel != stringBuilder.Span[0])) {
+                                    if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
                                         cells[cellIndex] = stringBuilder;
                                     }
 
@@ -127,7 +127,7 @@ namespace ByteTerrace.Ouroboros.Core
                                 beginIndex = length;
                             }
 
-                            if ((1 != stringBuilder.Length || escapeSentinel != stringBuilder.Span[0])) {
+                            if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
                                 cells[cellIndex] = stringBuilder;
                             }
 
