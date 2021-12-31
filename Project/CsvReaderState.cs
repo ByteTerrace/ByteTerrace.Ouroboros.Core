@@ -17,13 +17,20 @@ namespace ByteTerrace.Ouroboros.Core
         private Span<char> m_buffer;
         private int m_bufferOffset;
         private uint m_bufferMask;
-        private int m_cellIndex;
-        private ReadOnlyMemory<char>[] m_cells;
         private int m_currentControlCharIndex;
         private int m_numberOfCharsRead;
 
-        public int Current {
+        public ref char this[int index] {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ref m_buffer[index];
+        }
+        public int CurrentControlCharIndex {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => m_currentControlCharIndex;
+        }
+        public Span<char> Span {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => m_buffer;
         }
 
         public CsvReaderState(Span<char> buffer, char delimiter, char escapeSentinel) {
@@ -31,8 +38,6 @@ namespace ByteTerrace.Ouroboros.Core
             m_bufferMask = 0U;
             m_bufferOffset = buffer.Length;
             m_carriageReturnVector = Vector256.Create('\r');
-            m_cellIndex = 0;
-            m_cells = Array.Empty<ReadOnlyMemory<char>>();
             m_currentControlCharIndex = -1;
             m_delimiterVector = Vector256.Create(delimiter);
             m_escapeSentinelVector = Vector256.Create(escapeSentinel);
@@ -47,7 +52,7 @@ namespace ByteTerrace.Ouroboros.Core
         private bool CanReadFromBuffer16() =>
            ((m_bufferOffset + 15) < m_numberOfCharsRead);
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool TryFillBuffer(StreamReader reader) {
+        private bool TryFillBuffer(TextReader reader) {
             m_bufferOffset = 0;
             m_numberOfCharsRead = reader.Read(m_buffer);
 
@@ -55,7 +60,7 @@ namespace ByteTerrace.Ouroboros.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public bool FindNextControlCharacter(StreamReader reader) {
+        public bool FindNextControlCharacter(TextReader reader) {
             if (0 != (m_bufferMask = Bmi1.ResetLowestSetBit(m_bufferMask))) {
                 m_currentControlCharIndex = (m_bufferOffset + ((int)(Bmi1.TrailingZeroCount(m_bufferMask) >> 1)) - 16);
 
@@ -76,9 +81,9 @@ namespace ByteTerrace.Ouroboros.Core
 
                     if (0 != bufferMask) {
                         m_bufferMask = ((uint)bufferMask);
-                        m_currentControlCharIndex = (m_bufferOffset + ((int)(Bmi1.TrailingZeroCount(m_bufferMask) >> 1)));
+                        m_currentControlCharIndex = (m_bufferOffset + ((int)(Bmi1.TrailingZeroCount(m_bufferMask) >> 1)) - 16);
 
-                        return (0 != bufferMask);
+                        return true;
                     }
                 } while (CanReadFromBuffer16() || (TryFillBuffer(reader) && CanReadFromBuffer16()));
             }

@@ -47,7 +47,7 @@ namespace ByteTerrace.Ouroboros.Core
                 return true;
             }
 
-            if ((offset + 16) < length) {
+            if ((offset + 15) < length) {
                 do {
                     if (MoveNext(
                         searchVector: LoadVector256(ref buffer, offset),
