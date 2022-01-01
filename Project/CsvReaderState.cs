@@ -23,16 +23,18 @@ namespace ByteTerrace.Ouroboros.Core
         private ReadOnlyMemory<char> m_stringBuilder;
 
         public CsvReaderState(char[] buffer) {
-            m_bufferBack = buffer;
+            var bufferLength = buffer.Length;
+
+            m_bufferBack = new char[bufferLength];
             m_bufferFront = buffer;
             m_bufferIndex = 0;
             m_bufferMask = 0U;
-            m_bufferOffset = buffer.Length;
-            m_bufferTail = buffer.Length;
+            m_bufferOffset = bufferLength;
+            m_bufferTail = bufferLength;
             m_cellIndex = 0;
             m_cells = new ReadOnlyMemory<char>[16];
             m_numberOfCharsParsed = 0;
-            m_numberOfCharsRead = buffer.Length;
+            m_numberOfCharsRead = bufferLength;
             m_previousCarriageReturnIndex = -1;
             m_stringBuilder = ReadOnlyMemory<char>.Empty;
         }
@@ -73,33 +75,40 @@ namespace ByteTerrace.Ouroboros.Core
                 return true;
             }
 
+            ref var numberOfCharsRead = ref m_numberOfCharsRead;
+
             do {
-                var length = m_bufferFront.Length;
+                ref var bufferBack = ref m_bufferBack;
+                ref var bufferFront = ref m_bufferFront;
+                ref var bufferIndex = ref m_bufferIndex;
+                ref var bufferOffset = ref m_bufferOffset;
+                ref var bufferTail = ref m_bufferTail;
 
-                if (m_numberOfCharsParsed > (length >> 1)) {
-                    length <<= 1;
+                if (m_numberOfCharsParsed > (bufferFront.Length >> 1)) {
+                    var newLength = (bufferFront.Length << 1);
 
-                    m_stringBuilder = m_stringBuilder.Concat(m_bufferFront.AsMemory()[m_bufferTail..m_bufferOffset]);
-                    m_bufferFront = new char[length];
-                    m_bufferBack = new char[length];
+                    m_stringBuilder = m_stringBuilder.Concat(bufferFront.AsMemory()[bufferTail..bufferOffset]);
+
+                    Array.Resize(array: ref bufferBack, newSize: newLength);
+                    Array.Resize(array: ref bufferFront, newSize: newLength);
                 }
                 else {
-                    var bufferBack = m_bufferBack;
+                    var bufferBackLocal = bufferBack;
 
-                    m_bufferBack = m_bufferFront;
-                    m_bufferFront = bufferBack;
+                    bufferBack = bufferFront;
+                    bufferFront = bufferBackLocal;
                 }
 
-                m_bufferIndex = -16;
-                m_bufferOffset = 0;
-                m_numberOfCharsRead = reader.Read(buffer: m_bufferFront.AsSpan());
+                bufferIndex = -16;
+                bufferOffset = 0;
+                numberOfCharsRead = reader.Read(buffer: bufferFront.AsSpan());
 
                 if (TryFindNextControlChar16(delimiter: delimiter, escapeSentinel: escapeSentinel) || TryFindNextControlChar(delimiter: delimiter, escapeSentinel: escapeSentinel)) {
-                    m_bufferTail = 0;
+                    bufferTail = 0;
 
                     return true;
                 }
-            } while (0 != m_numberOfCharsRead);
+            } while (0 != numberOfCharsRead);
 
             return false;
         }
