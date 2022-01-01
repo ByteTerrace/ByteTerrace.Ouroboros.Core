@@ -138,7 +138,6 @@ namespace ByteTerrace.Ouroboros.Core
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public ReadOnlyMemory<ReadOnlyMemory<char>> ReadNextRecord(char delimiter, char escapeSentinel, TextReader reader) {
             m_numberOfCharsParsed = 0;
-            m_stringBuilder = ReadOnlyMemory<char>.Empty;
 
             var cellIndex = 0;
             var cellLimit = m_cells.Length;
