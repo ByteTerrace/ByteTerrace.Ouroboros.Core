@@ -15,12 +15,10 @@ namespace ByteTerrace.Ouroboros.Core
         private uint m_bufferMask;
         private int m_bufferOffset;
         private int m_bufferTail;
-        private int m_cellIndex;
         private ReadOnlyMemory<char>[] m_cells;
         private int m_numberOfCharsParsed;
         private int m_numberOfCharsRead;
         private int m_previousCarriageReturnIndex;
-        private ReadOnlyMemory<char> m_stringBuilder;
 
         public CsvReaderState(char[] buffer) {
             var bufferLength = buffer.Length;
@@ -31,12 +29,10 @@ namespace ByteTerrace.Ouroboros.Core
             m_bufferMask = 0U;
             m_bufferOffset = bufferLength;
             m_bufferTail = bufferLength;
-            m_cellIndex = 0;
             m_cells = new ReadOnlyMemory<char>[16];
             m_numberOfCharsParsed = 0;
             m_numberOfCharsRead = bufferLength;
             m_previousCarriageReturnIndex = -1;
-            m_stringBuilder = ReadOnlyMemory<char>.Empty;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -70,45 +66,37 @@ namespace ByteTerrace.Ouroboros.Core
             return false;
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        private bool TryFindNextControlChar(char delimiter, char escapeSentinel, TextReader reader) {
+        private bool TryFindNextControlChar(char delimiter, char escapeSentinel, TextReader reader, ref ReadOnlyMemory<char> overflowBuffer) {
             if (TryFindNextControlChar() || TryFindNextControlChar16(delimiter: delimiter, escapeSentinel: escapeSentinel)) { 
                 return true;
             }
 
-            ref var numberOfCharsRead = ref m_numberOfCharsRead;
-
             do {
-                ref var bufferBack = ref m_bufferBack;
-                ref var bufferFront = ref m_bufferFront;
-                ref var bufferIndex = ref m_bufferIndex;
-                ref var bufferOffset = ref m_bufferOffset;
-                ref var bufferTail = ref m_bufferTail;
+                if (m_numberOfCharsParsed > (m_bufferFront.Length >> 1)) {
+                    var newLength = (m_bufferFront.Length << 1);
 
-                if (m_numberOfCharsParsed > (bufferFront.Length >> 1)) {
-                    var newLength = (bufferFront.Length << 1);
+                    overflowBuffer = overflowBuffer.Concat(m_bufferFront.AsMemory()[m_bufferTail..m_bufferOffset]);
 
-                    m_stringBuilder = m_stringBuilder.Concat(bufferFront.AsMemory()[bufferTail..bufferOffset]);
-
-                    Array.Resize(array: ref bufferBack, newSize: newLength);
-                    Array.Resize(array: ref bufferFront, newSize: newLength);
+                    Array.Resize(array: ref m_bufferBack, newSize: newLength);
+                    Array.Resize(array: ref m_bufferFront, newSize: newLength);
                 }
                 else {
-                    var bufferBackLocal = bufferBack;
+                    var bufferBackLocal = m_bufferBack;
 
-                    bufferBack = bufferFront;
-                    bufferFront = bufferBackLocal;
+                    m_bufferBack = m_bufferFront;
+                    m_bufferFront = bufferBackLocal;
                 }
 
-                bufferIndex = -16;
-                bufferOffset = 0;
-                numberOfCharsRead = reader.Read(buffer: bufferFront.AsSpan());
+                m_bufferIndex = -16;
+                m_bufferOffset = 0;
+                m_numberOfCharsRead = reader.Read(buffer: m_bufferFront.AsSpan());
 
                 if (TryFindNextControlChar16(delimiter: delimiter, escapeSentinel: escapeSentinel) || TryFindNextControlChar(delimiter: delimiter, escapeSentinel: escapeSentinel)) {
-                    bufferTail = 0;
+                    m_bufferTail = 0;
 
                     return true;
                 }
-            } while (0 != numberOfCharsRead);
+            } while (0 != m_numberOfCharsRead);
 
             return false;
         }
@@ -147,35 +135,31 @@ namespace ByteTerrace.Ouroboros.Core
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public ReadOnlyMemory<ReadOnlyMemory<char>> ReadNextRecord(char delimiter, char escapeSentinel, TextReader reader) {
-            ref var beginIndex = ref m_bufferTail;
-            ref var buffer = ref m_bufferFront;
-            ref var cellIndex = ref m_cellIndex;
-            ref var cells = ref m_cells;
-            ref var currentRecordLength = ref m_numberOfCharsParsed;
-            ref var stringBuilder = ref m_stringBuilder;
+            m_numberOfCharsParsed = 0;
 
-            cellIndex = 0;
-            currentRecordLength = 0;
-
-            Array.Fill(cells, ReadOnlyMemory<char>.Empty);
-
-            var cellLimit = cells.Length;
+            var cellIndex = 0;
+            var cellLimit = m_cells.Length;
+            var currentControlChar = ((char)0);
             var endIndex = -1;
+            var stringBuilder = ReadOnlyMemory<char>.Empty;
 
-            while (TryFindNextControlChar(delimiter: delimiter, escapeSentinel: escapeSentinel, reader: reader)) {
+            ref var beginIndex = ref m_bufferTail;
+
+            while (TryFindNextControlChar(delimiter: delimiter, escapeSentinel: escapeSentinel, overflowBuffer: ref stringBuilder, reader: reader)) {
                 endIndex = ComputeControlCharIndex();
+                currentControlChar = m_bufferFront[endIndex];
 
-                if (delimiter == buffer[endIndex]) {
+                if (delimiter == currentControlChar) {
                     if (cellIndex == cellLimit) {
                         cellLimit <<= 1;
 
-                        Array.Resize(ref cells, cellLimit);
+                        Array.Resize(ref m_cells, cellLimit);
                     }
 
-                    cells[cellIndex++] = buffer.AsMemory()[beginIndex..endIndex];
+                    m_cells[cellIndex++] = m_bufferFront.AsMemory()[beginIndex..endIndex];
                     beginIndex = (endIndex + 1);
                 }
-                else if (escapeSentinel == buffer[endIndex]) {
+                else if (escapeSentinel == currentControlChar) {
                     stringBuilder = ReadOnlyMemory<char>.Empty;
 
                     var escapeSentinelRunLength = 1;
@@ -183,31 +167,35 @@ namespace ByteTerrace.Ouroboros.Core
                     var withinEscapedCell = true;
 
                     if (beginIndex < endIndex) {
-                        stringBuilder = buffer.AsMemory()[beginIndex..endIndex];
+                        stringBuilder = m_bufferFront.AsMemory()[beginIndex..endIndex];
                         beginIndex = endIndex;
                     }
 
                     ++beginIndex;
 
                     do {
-                        if (TryFindNextControlChar(delimiter: delimiter, escapeSentinel: escapeSentinel, reader: reader)) {
+                        if (TryFindNextControlChar(delimiter: delimiter, escapeSentinel: escapeSentinel, overflowBuffer: ref stringBuilder, reader: reader)) {
                             endIndex = ComputeControlCharIndex();
+                            currentControlChar = m_bufferFront[endIndex];
 
-                            if (delimiter == buffer[endIndex]) { // current char is delimiter
+                            if (delimiter == currentControlChar) { // current char is delimiter
                                 if (0 == (escapeSentinelRunLength & 1)) { // end of cell
                                     if (beginIndex < endIndex) {
-                                        stringBuilder = stringBuilder.Concat(buffer.AsMemory()[beginIndex..endIndex]);
+                                        stringBuilder = stringBuilder.Concat(m_bufferFront.AsMemory()[beginIndex..endIndex]);
                                         beginIndex = endIndex;
                                     }
 
                                     if (cellIndex == cellLimit) {
                                         cellLimit <<= 1;
 
-                                        Array.Resize(ref cells, cellLimit);
+                                        Array.Resize(ref m_cells, cellLimit);
                                     }
 
                                     if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
-                                        cells[cellIndex] = stringBuilder;
+                                        m_cells[cellIndex] = stringBuilder;
+                                    }
+                                    else {
+                                        m_cells[cellIndex] = ReadOnlyMemory<char>.Empty;
                                     }
 
                                     withinEscapedCell = false;
@@ -215,48 +203,54 @@ namespace ByteTerrace.Ouroboros.Core
                                     ++cellIndex;
                                 }
                                 else { // escaped string segment
-                                    stringBuilder = stringBuilder.Concat(buffer.AsMemory()[beginIndex..(endIndex + 1)]);
+                                    stringBuilder = stringBuilder.Concat(m_bufferFront.AsMemory()[beginIndex..(endIndex + 1)]);
                                     beginIndex = (endIndex + 1);
                                 }
                             }
-                            else if (escapeSentinel == buffer[endIndex]) { // current char is escape sentinel
+                            else if (escapeSentinel == currentControlChar) { // current char is escape sentinel
                                 ++escapeSentinelRunLength;
 
-                                if (1 == (currentRecordLength - previousEscapeSentinelIndex)) { // escape sentinel literal "["]XYZ or XYZ"["]
+                                if (1 == (m_numberOfCharsParsed - previousEscapeSentinelIndex)) { // escape sentinel literal "["]XYZ or XYZ"["]
                                     previousEscapeSentinelIndex = -1;
-                                    stringBuilder = stringBuilder.Concat(buffer.AsMemory().Slice(beginIndex, 1));
+                                    stringBuilder = stringBuilder.Concat(m_bufferFront.AsMemory().Slice(beginIndex, 1));
                                 }
                                 else {
-                                    previousEscapeSentinelIndex = currentRecordLength;
-                                    stringBuilder = stringBuilder.Concat(buffer.AsMemory()[beginIndex..endIndex]);
+                                    previousEscapeSentinelIndex = m_numberOfCharsParsed;
+                                    stringBuilder = stringBuilder.Concat(m_bufferFront.AsMemory()[beginIndex..endIndex]);
                                 }
 
                                 beginIndex = (endIndex + 1);
                             }
                             else if (0 == (escapeSentinelRunLength & 1)) { // end of record
                                 if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
-                                    cells[cellIndex] = stringBuilder;
+                                    m_cells[cellIndex] = stringBuilder;
+                                }
+                                else {
+                                    m_cells[cellIndex] = ReadOnlyMemory<char>.Empty;
                                 }
 
                                 ++beginIndex;
 
-                                return cells.AsMemory()[0..(cellIndex + 1)];
+                                return m_cells.AsMemory()[0..(cellIndex + 1)];
                             }
                         }
                         else {
                             if (beginIndex < endIndex) { // trailing escape sentinel: "XYZ["]
-                                stringBuilder = stringBuilder.Concat(buffer.AsMemory()[beginIndex..endIndex]);
+                                stringBuilder = stringBuilder.Concat(m_bufferFront.AsMemory()[beginIndex..endIndex]);
                                 beginIndex = endIndex;
                             }
                             else if ((-1 == endIndex) // trailing string segment: ""[XYZ]
                             || (1 == (endIndex - previousEscapeSentinelIndex)) // trailing escape sentinel literal: XYZ"["]
                             ) {
-                                stringBuilder = stringBuilder.Concat(buffer.AsMemory()[beginIndex..]);
-                                beginIndex = buffer.Length;
+                                stringBuilder = stringBuilder.Concat(m_bufferFront.AsMemory()[beginIndex..]);
+                                beginIndex = m_bufferFront.Length;
                             }
 
                             if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
-                                cells[cellIndex] = stringBuilder;
+                                m_cells[cellIndex] = stringBuilder;
+                            }
+                            else {
+                                m_cells[cellIndex] = ReadOnlyMemory<char>.Empty;
                             }
 
                             withinEscapedCell = false;
@@ -265,17 +259,17 @@ namespace ByteTerrace.Ouroboros.Core
                         }
                     } while (withinEscapedCell);
                 }
-                else if (('\n' == buffer[endIndex]) && (1 != (endIndex - m_previousCarriageReturnIndex))) {
+                else if (('\n' == currentControlChar) && (1 != (endIndex - m_previousCarriageReturnIndex))) {
                     break;
                 }
-                else if ('\r' == buffer[endIndex]) {
-                    m_previousCarriageReturnIndex = currentRecordLength;
+                else if ('\r' == currentControlChar) {
+                    m_previousCarriageReturnIndex = m_numberOfCharsParsed;
 
                     break;
                 }
             }
 
-            return cells.AsMemory()[0..(cellIndex + 1)];
+            return m_cells.AsMemory()[0..(cellIndex + 1)];
         }
         public void Reset() {
             m_bufferIndex = 0;
