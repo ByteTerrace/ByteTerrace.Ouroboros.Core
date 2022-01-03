@@ -19,7 +19,13 @@ namespace ByteTerrace.Ouroboros.Core
         private int m_numberOfCharsParsed;
         private int m_numberOfCharsRead;
         private int m_previousCarriageReturnIndex;
+        private ReadOnlyMemory<ReadOnlyMemory<char>> m_record;
         private ReadOnlyMemory<char> m_stringBuilder;
+
+        public ReadOnlyMemory<ReadOnlyMemory<char>> Current {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => m_record;
+        }
 
         public CsvReaderState(char[] buffer) {
             var bufferLength = buffer.Length;
@@ -34,17 +40,13 @@ namespace ByteTerrace.Ouroboros.Core
             m_numberOfCharsParsed = 0;
             m_numberOfCharsRead = bufferLength;
             m_previousCarriageReturnIndex = -1;
+            m_record = ReadOnlyMemory<ReadOnlyMemory<char>>.Empty;
             m_stringBuilder = ReadOnlyMemory<char>.Empty;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int ComputeControlCharIndex() {
-            var result = (m_bufferIndex + ((int)(Bmi1.TrailingZeroCount(m_bufferMask) >> 1)));
-
-            m_numberOfCharsParsed += (result - m_bufferTail + 1);
-
-            return result;
-        }
+        private int ComputeControlCharIndex() =>
+            (m_bufferIndex + ((int)(Bmi1.TrailingZeroCount(m_bufferMask) >> 1)));
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool TryFindNextControlChar() =>
             (0 != (m_bufferMask = Bmi1.ResetLowestSetBit(m_bufferMask)));
@@ -74,7 +76,12 @@ namespace ByteTerrace.Ouroboros.Core
             }
 
             do {
-                m_stringBuilder = m_stringBuilder.Concat(m_bufferFront.AsMemory()[m_bufferTail..m_bufferOffset]);
+                if (m_bufferTail < m_bufferOffset) {
+                    var delta = (m_bufferOffset - m_bufferTail);
+
+                    m_numberOfCharsParsed += delta;
+                    m_stringBuilder = m_stringBuilder.Concat(m_bufferFront.AsMemory().Slice(m_bufferTail, delta));
+                }
 
                 if (m_numberOfCharsParsed > (m_bufferFront.Length >> 1)) {
                     var newLength = (m_bufferFront.Length << 1);
@@ -136,7 +143,7 @@ namespace ByteTerrace.Ouroboros.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public ReadOnlyMemory<ReadOnlyMemory<char>> ReadNextRecord(char delimiter, char escapeSentinel, TextReader reader) {
+        public bool MoveNext(char delimiter, char escapeSentinel, TextReader reader) {
             m_numberOfCharsParsed = 0;
 
             var cellIndex = 0;
@@ -149,6 +156,8 @@ namespace ByteTerrace.Ouroboros.Core
             while (TryFindNextControlChar(delimiter: delimiter, escapeSentinel: escapeSentinel, reader: reader)) {
                 endIndex = ComputeControlCharIndex();
                 currentControlChar = m_bufferFront[endIndex];
+
+                m_numberOfCharsParsed += (endIndex - beginIndex + 1);
 
                 if (delimiter == currentControlChar) {
                     if (cellIndex == cellLimit) {
@@ -164,7 +173,7 @@ namespace ByteTerrace.Ouroboros.Core
                     m_stringBuilder = ReadOnlyMemory<char>.Empty;
 
                     var escapeSentinelRunLength = 1;
-                    var previousEscapeSentinelIndex = endIndex;
+                    var previousEscapeSentinelIndex = m_numberOfCharsParsed;
                     var withinEscapedCell = true;
 
                     if (beginIndex < endIndex) {
@@ -178,6 +187,8 @@ namespace ByteTerrace.Ouroboros.Core
                         if (TryFindNextControlChar(delimiter: delimiter, escapeSentinel: escapeSentinel, reader: reader)) {
                             endIndex = ComputeControlCharIndex();
                             currentControlChar = m_bufferFront[endIndex];
+
+                            m_numberOfCharsParsed += (endIndex - beginIndex + 1);
 
                             if (delimiter == currentControlChar) { // current char is delimiter
                                 if (0 == (escapeSentinelRunLength & 1)) { // end of cell
@@ -232,7 +243,9 @@ namespace ByteTerrace.Ouroboros.Core
 
                                 ++beginIndex;
 
-                                return m_cells.AsMemory()[0..(cellIndex + 1)];
+                                m_record = m_cells.AsMemory()[0..(cellIndex + 1)];
+
+                                return true;
                             }
                         }
                         else {
@@ -240,7 +253,7 @@ namespace ByteTerrace.Ouroboros.Core
                                 m_stringBuilder = m_stringBuilder.Concat(m_bufferFront.AsMemory()[beginIndex..endIndex]);
                                 beginIndex = endIndex;
                             }
-                            else if ((-1 == endIndex) || (1 == (endIndex - previousEscapeSentinelIndex))) { // trailing string segment: ""[XYZ] -OR- trailing escape sentinel literal: XYZ"["]
+                            else if ((-1 == endIndex) || (1 == (m_numberOfCharsParsed - previousEscapeSentinelIndex))) { // trailing string segment: ""[XYZ] -OR- trailing escape sentinel literal: XYZ"["]
                                 m_stringBuilder = m_stringBuilder.Concat(m_bufferFront.AsMemory()[beginIndex..]);
                                 beginIndex = m_bufferFront.Length;
                             }
@@ -264,17 +277,20 @@ namespace ByteTerrace.Ouroboros.Core
                         }
                     } while (withinEscapedCell);
                 }
-                else if (('\n' == currentControlChar) && (1 != (endIndex - m_previousCarriageReturnIndex))) {
-                    break;
+                else if (('\n' == currentControlChar) && (1 != (m_numberOfCharsParsed - m_previousCarriageReturnIndex))) {
+                    m_record = m_cells.AsMemory()[0..(cellIndex + 1)];
+
+                    return true;
                 }
                 else if ('\r' == currentControlChar) {
+                    m_record = m_cells.AsMemory()[0..(cellIndex + 1)];
                     m_previousCarriageReturnIndex = m_numberOfCharsParsed;
 
-                    break;
+                    return true;
                 }
             }
 
-            return m_cells.AsMemory()[0..(cellIndex + 1)];
+            return (0 < m_numberOfCharsParsed);
         }
         public void Reset() {
             m_bufferIndex = 0;
