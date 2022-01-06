@@ -96,7 +96,7 @@ namespace ByteTerrace.Ouroboros.Core
             m_bufferBack = bufferBack;
             m_bufferFront = bufferFront;
             m_bufferHead = 0;
-            m_bufferLength = bufferLength;
+            m_bufferLength = ((0 != bufferLength) ? bufferLength : -2);
             m_bufferMask = bufferMask;
             m_bufferOffset = 0;
             m_bufferView = bufferFront.AsMemory()[0..bufferLength];
@@ -196,7 +196,7 @@ namespace ByteTerrace.Ouroboros.Core
                         m_bufferOffset += 16;
                     } while ((m_bufferOffset + 15) < m_bufferLength);
                 }
-            } while ((0 == (m_bufferLength & 15)) && (0 != m_bufferLength));
+            } while (0 == (m_bufferLength & 15));
 
             var length = (m_bufferLength - m_bufferOffset);
 
@@ -340,33 +340,11 @@ namespace ByteTerrace.Ouroboros.Core
             if (m_bufferHead < m_bufferLength) { // remainder cell
                 m_cells[m_cellIndex++] = m_bufferView[m_bufferHead..m_bufferLength];
             }
-            else if (((m_currentControlChar == m_delimiter) && (m_currentControlIndex == (m_bufferLength - 1))) || (0 == m_bufferLength)) {
+            else if (((m_currentControlChar == m_delimiter) && (m_currentControlIndex == (m_bufferLength - 1))) || (-2 == m_bufferLength)) {
                 m_cellIndex++;
             }
 
             return false;
-        }
-        public void Reset() {
-            var bufferLength = m_textReader.Read(buffer: m_bufferFront.AsSpan());
-
-            uint bufferMask;
-
-            if (15 < bufferLength) {
-                bufferMask = GetBufferMask16Unsafe(ref m_bufferFront[0], m_delimiter, m_escapeSentinel);
-            }
-            else {
-                bufferMask = GetBufferMaskUnsafe(ref m_bufferFront[0], bufferLength, m_delimiter, m_escapeSentinel);
-            }
-
-            m_bufferHead = 0;
-            m_bufferLength = bufferLength;
-            m_bufferMask = bufferMask;
-            m_bufferOffset = 0;
-            m_bufferView = m_bufferFront.AsMemory()[0..bufferLength];
-            m_currentControlChar = '\0';
-            m_currentControlIndex = -2;
-            m_previousControlChar = '\0';
-            m_previousControlIndex = -2;
         }
     }
 }
