@@ -185,7 +185,6 @@ namespace ByteTerrace.Ouroboros.Core
 
                     do {
                         m_bufferMask = GetBufferMask16Unsafe(ref this[m_bufferOffset], m_delimiter, m_escapeSentinel);
-                        m_recordLength += 16;
 
                         if (0 != m_bufferMask) {
                             ComputeNextControlChar();
@@ -194,6 +193,7 @@ namespace ByteTerrace.Ouroboros.Core
                         }
 
                         m_bufferOffset += 16;
+                        m_recordLength += 16;
                     } while ((m_bufferOffset + 15) < m_bufferLength);
                 }
             } while (0 == (m_bufferLength & 15));
