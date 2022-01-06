@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 
 namespace ByteTerrace.Ouroboros.Core
 {
@@ -40,106 +41,125 @@ namespace ByteTerrace.Ouroboros.Core
         /// <param name="delimiter">A character that delimits regions within this input.</param>
         /// <param name="escapeSentinel">A character that indicates the beginning/end of an escaped subregion.</param>
         /// <returns>A contiguous region of memory whose elements contain subregions from the input that are delimited by the specified character; any delimiters that are bookended by the specified escape sentinel character will be skipped.</returns>
-        [SkipLocalsInit]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static ReadOnlyMemory<ReadOnlyMemory<char>> Delimit(this ReadOnlyMemory<char> input, char delimiter, char escapeSentinel) {
-            var controlIndices = new ArrayPoolList<uint>(stackalloc uint[256]);
+            if (input.IsEmpty) {
+                return new[] { input, };
+            }
+
+            var beginIndex = 0;
+            var cells = new ReadOnlyMemory<char>[32];
+            var cellIndex = 0;
+            var delimiterVector = Vector256.Create(delimiter);
+            var escapeSentinelVector = Vector256.Create(escapeSentinel);
             var length = input.Length;
-            var loopLimit = controlIndices.BuildIndicesList(
-                input: ref MemoryMarshal.GetReference(input.Span),
-                length: length,
-                value0: delimiter,
-                value1: escapeSentinel
-            );
+            var offset = 0;
+            var span = input.Span;
+            var state = new CharIndexState();
 
-            if (0 < loopLimit) {
-                var beginIndex = 0;
-                var endIndex = 0;
-                var escapeSentinelRunLength = 0;
-                var loopIndex = 0;
-                var stringBuilder = ReadOnlyMemory<char>.Empty;
-                var result = new ReadOnlyMemory<char>[(loopLimit + 1)];
-                var resultIndex = 0;
+            ref var spanRef = ref MemoryMarshal.GetReference(span);
 
-                do {
-                    endIndex = ((int)controlIndices[loopIndex++]);
+            while (state.MoveNext(ref spanRef, ref offset, length, delimiterVector, escapeSentinelVector)) {
+                if (delimiter == span[state.Current]) {
+                    if (cellIndex == cells.Length) {
+                        Array.Resize(ref cells, (cells.Length << 1));
+                    }
 
-                    if (0 != (endIndex & 0b10000000000000000000000000000000)) { // isDelimiter
-                        endIndex &= 0b01111111111111111111111111111111;
+                    cells[cellIndex] = input[beginIndex..state.Current];
+                    beginIndex = (state.Current + 1);
+                    ++cellIndex;
+                }
+                else {
+                    var escapeSentinelRunLength = 1;
+                    var previousEscapeSentinelIndex = state.Current;
+                    var stringBuilder = ReadOnlyMemory<char>.Empty;
+                    var withinEscapedCell = true;
 
-                        if (stringBuilder.IsEmpty) {
-                            result[resultIndex] = input[beginIndex..endIndex];
-                        }
-                        else {
-                            ++beginIndex;
+                    if (beginIndex < state.Current) {
+                        stringBuilder = input[beginIndex..state.Current];
+                        beginIndex = state.Current;
+                    }
 
-                            if (beginIndex == endIndex) {
-                                if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
-                                    result[resultIndex] = stringBuilder;
+                    ++beginIndex;
+
+                    do {
+                        if (state.MoveNext(ref spanRef, ref offset, length, delimiterVector, escapeSentinelVector)) {
+                            if (delimiter == span[state.Current]) { // current char is delimiter
+                                if (0 == (escapeSentinelRunLength & 1)) { // end of cell
+                                    if (beginIndex < state.Current) {
+                                        stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
+                                        beginIndex = state.Current;
+                                    }
+
+                                    if (cellIndex == cells.Length) {
+                                        Array.Resize(ref cells, (cells.Length << 1));
+                                    }
+
+                                    if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
+                                        cells[cellIndex] = stringBuilder;
+                                    }
+
+                                    withinEscapedCell = false;
+                                    ++beginIndex;
+                                    ++cellIndex;
+                                }
+                                else { // escaped string segment
+                                    stringBuilder = stringBuilder.Concat(input[beginIndex..(state.Current + 1)]);
+                                    beginIndex = (state.Current + 1);
                                 }
                             }
-                            else {
-                                result[resultIndex] = stringBuilder.Concat(input[beginIndex..endIndex]);
+                            else { // current char is escape sentinel
+                                ++escapeSentinelRunLength;
+
+                                if (1 == (state.Current - previousEscapeSentinelIndex)) { // escape sentinel literal "["]XYZ or XYZ"["]
+                                    --beginIndex;
+                                    previousEscapeSentinelIndex = -1;
+                                }
+                                else {
+                                    previousEscapeSentinelIndex = state.Current;
+                                }
+
+                                stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
+                                beginIndex = (state.Current + 1);
                             }
                         }
-
-                        beginIndex = (endIndex + 1);
-                        ++resultIndex;
-                        stringBuilder = ReadOnlyMemory<char>.Empty;
-                    }
-                    else if (loopIndex < loopLimit) {
-                        ++escapeSentinelRunLength;
-
-                        if (0 != (controlIndices[loopIndex] & 0b10000000000000000000000000000000)) { // isDelimiter
-                            if (1 == (escapeSentinelRunLength & 1)) { // isOddEscapeSentinelRun
-                                ++loopIndex;
+                        else {
+                            if (beginIndex < state.Current) { // trailing escape sentinel: "XYZ["]
+                                stringBuilder = stringBuilder.Concat(input[beginIndex..state.Current]);
+                                beginIndex = state.Current;
                             }
-                            else if (1 != (endIndex - beginIndex)) {
-                                ++beginIndex;
+                            else if ((-1 == state.Current) // trailing string segment: ""[XYZ]
+                            || (1 == (state.Current - previousEscapeSentinelIndex)) // trailing escape sentinel literal: XYZ"["]
+                            ) {
+                                stringBuilder = stringBuilder.Concat(input[beginIndex..]);
+                                beginIndex = length;
                             }
+
+                            if ((1 != stringBuilder.Length) || (escapeSentinel != stringBuilder.Span[0])) {
+                                cells[cellIndex] = stringBuilder;
+                            }
+
+                            withinEscapedCell = false;
+                            ++beginIndex;
+                            ++cellIndex;
                         }
-                        else if (0 == (escapeSentinelRunLength & 1)) { // isEvenEscapeSentinelRun
-                            if (1 != (endIndex - beginIndex)) { // isStringSegment
-                                ++beginIndex;
-                            }
-                            else { // isEscapeSentinelLiteral
-                                beginIndex = endIndex;
-                                ++endIndex;
-                                ++loopIndex;
-                            }
-                        }
-
-                        if (beginIndex < endIndex) {
-                            stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
-                            beginIndex = endIndex;
-                        }
-                    }
-                } while (loopIndex < loopLimit);
-
-                if ((0 == (controlIndices[^1] & 0b10000000000000000000000000000000)) && ((2 != (length - beginIndex)) || (1 != (length - endIndex)))) {
-                    ++beginIndex;
+                    } while (withinEscapedCell);
                 }
-
-                if (1 < (length - endIndex)) {
-                    endIndex = length;
-                }
-
-                if (beginIndex < endIndex) {
-                    stringBuilder = stringBuilder.Concat(input[beginIndex..endIndex]);
-                }
-
-                if (!stringBuilder.IsEmpty && (1 != stringBuilder.Length || escapeSentinel != stringBuilder.Span[0])) {
-                    result[resultIndex] = stringBuilder;
-                }
-
-                controlIndices.Dispose();
-
-                return result.AsMemory()[..(resultIndex + 1)];
             }
-            else {
-                controlIndices.Dispose();
 
-                return new ReadOnlyMemory<char>[1] { input, }.AsMemory();
+            if ((-1 == state.Current) && (beginIndex < length)) { // remainder cell
+                cells[cellIndex++] = input[beginIndex..];
             }
+            else if (beginIndex == state.Current) { // remainder control character
+                if (delimiter == span[state.Current]) { // remainder char is delimiter
+                    cellIndex += 2;
+                }
+                else { // remainder char is escape sentinel
+                    cellIndex += 1;
+                }
+            }
+
+            return cells.AsMemory()[..cellIndex];
         }
         /// <summary>
         /// 
