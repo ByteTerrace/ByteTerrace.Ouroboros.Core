@@ -1,12 +1,11 @@
-﻿using Microsoft.Toolkit.HighPerformance;
-using System.Buffers;
+﻿using System.Collections;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
 namespace ByteTerrace.Ouroboros.Core
 {
-    public sealed class CsvReader : IDisposable
+    public sealed class CsvReader : IEnumerable<ReadOnlyMemory<ReadOnlyMemory<char>>>, IEnumerator<ReadOnlyMemory<ReadOnlyMemory<char>>>
     {
         private static uint GetBufferMaskUnsafe(ref char input, int length, char delimiter, char escapeSentinel) {
             var bufferMask = 0U;
@@ -57,10 +56,11 @@ namespace ByteTerrace.Ouroboros.Core
             get => ref m_bufferFront[index];
         }
 
-        public ReadOnlyMemory<ReadOnlyMemory<char>> CurrentRecord {
+        public ReadOnlyMemory<ReadOnlyMemory<char>> Current {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => m_cells.AsMemory()[0..m_cellIndex];
         }
+        object IEnumerator.Current => Current;
 
         public CsvReader(char delimiter, char escapeSentinel, TextReader textReader) {
             if (('\n' == delimiter) || ('\r' == delimiter)) {
@@ -80,7 +80,7 @@ namespace ByteTerrace.Ouroboros.Core
             var bufferLength = 4096;
             var bufferBack = new char[bufferLength];
             var bufferFront = new char[bufferLength];
-            var cells = ArrayPool<ReadOnlyMemory<char>>.Shared.Rent(minimumLength: 16);
+            var cells = new ReadOnlyMemory<char>[16];
 
             uint bufferMask;
 
@@ -124,26 +124,26 @@ namespace ByteTerrace.Ouroboros.Core
             m_currentControlIndex = currentControlIndex;
         }
         private void FillBuffer() {
-            if (-1 < m_currentControlIndex) {
-                m_stringBuilder = m_stringBuilder.Concat(m_bufferView[m_bufferHead..m_bufferLength]);
+            if (-1 < m_currentControlIndex) { // a control character was found within the buffer 
+                m_stringBuilder = m_stringBuilder.Concat(m_bufferView[m_bufferHead..m_bufferLength]); // copy remaining segment
             }
-            else {
-                m_stringBuilder = m_stringBuilder.Concat(m_bufferView[0..m_bufferLength]);
-            }
-
-            if (m_currentControlIndex == (m_bufferLength - 1)) {
-                m_currentControlIndex = -1;
-            }
-            else {
-                m_currentControlIndex = -2;
+            else { // no control character was encountered within the buffer
+                m_stringBuilder = m_stringBuilder.Concat(m_bufferView[0..m_bufferLength]); // copy entire buffer
             }
 
-            if (m_recordLength > 8388608) { // arbitrary limit of 16MB per record
+            if (m_currentControlIndex == (m_bufferLength - 1)) { // current control index is located at end of buffer
+                m_currentControlIndex = -1; // set index so that (1 == (current - m_previous)) if next value is a control character
+            }
+            else { // either the current control index is located somewhere before the end of the buffer or simply wasn't encountered
+                m_currentControlIndex = -2; // set index so that (1 != (current - m_previous)) if next value is a control character
+            }
+
+            if (m_recordLength > 8388608) { // semi-arbitrary limit of 16MB per record; way more than anything even remotely considered reasonable
                 throw new InsufficientMemoryException(message: "record exceeds maximum supported length of 16 megabytes");
             }
 
-            if (m_recordLength > (m_bufferLength >> 1)) { // buffer is not large enough to contain two of the largest records we've seen so far, double its size
-                var newLength = (m_bufferLength << 1);
+            if (m_recordLength > (m_bufferLength >> 1)) { // buffer is not large enough to contain two of the largest records we've seen so far
+                var newLength = (m_bufferLength << 1); // double the buffer size
 
                 Array.Resize(array: ref m_bufferBack, newSize: newLength);
                 Array.Resize(array: ref m_bufferFront, newSize: newLength);
@@ -180,7 +180,7 @@ namespace ByteTerrace.Ouroboros.Core
 
                 if ((m_bufferOffset + 15) < m_bufferLength) {
                     if ((m_cellIndex + 16) >= m_cells.Length) {
-                        ArrayPool<ReadOnlyMemory<char>>.Shared.Resize(ref m_cells!, (m_cells.Length + 16));
+                        Array.Resize(ref m_cells, (m_cells.Length + 16));
                     }
 
                     do {
@@ -210,10 +210,22 @@ namespace ByteTerrace.Ouroboros.Core
         }
 
         public void Dispose() {
+            if (m_bufferBack is not null) {
+                Array.Fill(m_bufferBack, '\0');
+            }
+
+            if (m_bufferFront is not null) {
+                Array.Fill(m_bufferFront, '\0');
+            }
+
             if (m_cells is not null) {
-                ArrayPool<ReadOnlyMemory<char>>.Shared.Return(m_cells);
+                Array.Fill(m_cells, ReadOnlyMemory<char>.Empty);
             }
         }
+        public IEnumerator<ReadOnlyMemory<ReadOnlyMemory<char>>> GetEnumerator() =>
+            this;
+        IEnumerator IEnumerable.GetEnumerator() =>
+            GetEnumerator();
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public bool MoveNext() {
             m_cellIndex = 0;
@@ -337,7 +349,7 @@ namespace ByteTerrace.Ouroboros.Core
                 }
             }
 
-            if (m_bufferHead < m_bufferLength) { // remainder cell
+            if (m_bufferHead < m_bufferLength) {
                 m_cells[m_cellIndex++] = m_bufferView[m_bufferHead..m_bufferLength];
             }
             else if (((m_currentControlChar == m_delimiter) && (m_currentControlIndex == (m_bufferLength - 1))) || (-2 == m_bufferLength)) {
@@ -346,5 +358,7 @@ namespace ByteTerrace.Ouroboros.Core
 
             return false;
         }
+        public void Reset() =>
+            throw new NotImplementedException();
     }
 }
