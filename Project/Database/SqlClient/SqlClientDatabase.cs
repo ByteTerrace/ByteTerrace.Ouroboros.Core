@@ -3,10 +3,23 @@ using System.Data;
 
 namespace ByteTerrace.Ouroboros.Core
 {
-    public sealed class SqlClientDatabase : AbstractDatabase<SqlConnection, SqlCommand, SqlCommandBuilder, SqlDataReader, SqlParameter>
+    /// <summary>
+    /// 
+    /// </summary>
+    public sealed class SqlClientDatabase : AbstractDatabase<SqlCommand, SqlCommandBuilder, SqlConnection, SqlDataReader, SqlParameter>
     {
-        #region Instance Members
-        public SqlClientDatabase(SqlConnection connection) : base(new SqlCommandBuilder(), connection) { }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        public static SqlClientDatabase Create(SqlConnection connection) =>
+            new(connection);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        private SqlClientDatabase(SqlConnection connection) : base(new SqlCommandBuilder(), connection) { }
 
         private SqlBulkCopy InitializeBulkCopy(IDataReader dataReader, SqlConnection dbConnection, string schemaName, string tableName, params SqlBulkCopyColumnMapping[]? columnMappings) {
             if ((columnMappings is null) || (0 < columnMappings.Length)) {
@@ -35,6 +48,13 @@ namespace ByteTerrace.Ouroboros.Core
             return bulkCopy;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sourceDataReader"></param>
+        /// <param name="targetSchemaName"></param>
+        /// <param name="targetTableName"></param>
+        /// <param name="columnMappings"></param>
         public void ExecuteBulkCopy(IDataReader sourceDataReader, string targetSchemaName, string targetTableName, SqlBulkCopyColumnMapping[]? columnMappings = default) {
             using var bulkCopy = InitializeBulkCopy(
                 columnMappings: columnMappings,
@@ -44,9 +64,17 @@ namespace ByteTerrace.Ouroboros.Core
                 tableName: targetTableName
             );
 
-            OpenConnection();
+            ((IDatabase<SqlCommand, SqlConnection, SqlDataReader, SqlParameter>)this).OpenConnection();
             bulkCopy.WriteToServer(reader: sourceDataReader);
         }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sourceDataReader"></param>
+        /// <param name="targetSchemaName"></param>
+        /// <param name="targetTableName"></param>
+        /// <param name="columnMappings"></param>
+        /// <param name="cancellationToken"></param>
         public async ValueTask ExecuteBulkCopyAsync(IDataReader sourceDataReader, string targetSchemaName, string targetTableName, SqlBulkCopyColumnMapping[]? columnMappings = default, CancellationToken cancellationToken = default) {
             using var bulkCopy = InitializeBulkCopy(
                 columnMappings: columnMappings,
@@ -62,6 +90,10 @@ namespace ByteTerrace.Ouroboros.Core
                 reader: sourceDataReader
             );
         }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cancellationToken"></param>
         public async ValueTask OpenConnectionAsync(CancellationToken cancellationToken = default) {
             var connectionState = Connection.State;
 
@@ -69,6 +101,5 @@ namespace ByteTerrace.Ouroboros.Core
                 await Connection.OpenAsync(cancellationToken: cancellationToken);
             }
         }
-        #endregion
     }
 }
