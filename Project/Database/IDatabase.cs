@@ -1,7 +1,7 @@
 ﻿using System.Data;
 using System.Data.Common;
 
-namespace ByteTerrace.Ouroboros.Core
+namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
     /// Exposes low-level database operations.

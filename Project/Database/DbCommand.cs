@@ -1,6 +1,6 @@
 ﻿using System.Data;
 
-namespace ByteTerrace.Ouroboros.Core
+namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
     /// Represents a database command.

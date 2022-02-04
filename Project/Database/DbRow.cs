@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace ByteTerrace.Ouroboros.Core
+namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
     /// Represents a set of fields from a database row.

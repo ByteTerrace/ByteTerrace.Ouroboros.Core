@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Data;
 
-namespace ByteTerrace.Ouroboros.Core
+namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
     /// Represents a set of rows from a database query along with the metadata about the query that returned them.

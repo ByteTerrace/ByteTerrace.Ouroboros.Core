@@ -1,4 +1,4 @@
-﻿namespace ByteTerrace.Ouroboros.Core
+﻿namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
     /// Represents the metadata of a set of fields in a database row.

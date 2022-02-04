@@ -1,7 +1,7 @@
 ﻿using System.Data;
 using System.Data.Common;
 
-namespace ByteTerrace.Ouroboros.Core
+namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
     /// Provides a minimal implementation of the <see cref="IDatabase{TDbCommand, TDbConnection, TDbDataReader, TDbParameter}"/> interface.

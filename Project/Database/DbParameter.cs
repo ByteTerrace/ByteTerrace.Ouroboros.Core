@@ -1,8 +1,9 @@
-﻿using System.Collections.ObjectModel;
+﻿using ByteTerrace.Ouroboros.Core;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Xml;
 
-namespace ByteTerrace.Ouroboros.Core
+namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
     /// Represents a database parameter.

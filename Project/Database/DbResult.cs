@@ -1,4 +1,4 @@
-﻿namespace ByteTerrace.Ouroboros.Core
+﻿namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
     /// Represents the result of a database command.
