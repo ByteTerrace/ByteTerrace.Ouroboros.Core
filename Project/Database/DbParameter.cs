@@ -7,10 +7,10 @@ namespace ByteTerrace.Ouroboros.Core
     /// <summary>
     /// Represents a database parameter.
     /// </summary>
-    /// <param name="Direction"></param>
-    /// <param name="Name"></param>
-    /// <param name="Type"></param>
-    /// <param name="Value"></param>
+    /// <param name="Direction">The direction of the parameter.</param>
+    /// <param name="Name">The name of the parameter.</param>
+    /// <param name="Type">The database type of the parameter.</param>
+    /// <param name="Value">The value of the parameter.</param>
     public readonly record struct DbParameter(
         ParameterDirection Direction,
         string Name,
@@ -48,11 +48,11 @@ namespace ByteTerrace.Ouroboros.Core
         /// <summary>
         /// Creates a new database parameter struct.
         /// </summary>
-        /// <typeparam name="TValue"></typeparam>
-        /// <param name="name"></param>
-        /// <param name="value"></param>
-        /// <param name="type"></param>
-        /// <param name="direction"></param>
+        /// <typeparam name="TValue">The common language runtime type type of the parameter.</typeparam>
+        /// <param name="direction">The direction of the parameter.</param>
+        /// <param name="name">The direction of the parameter.</param>
+        /// <param name="type">The database type of the parameter.</param>
+        /// <param name="value">The value of the parameter.</param>
         public static DbParameter New<TValue>(string name, TValue value, DbType? type = default, ParameterDirection? direction = default) {
             if ((type is null) && (value is not null) && ClrTypeToDbTypeMap.TryGetValue(value.GetType().UnwrapIfNullable(), out DbType inferredDbType)) {
                 type = inferredDbType;
@@ -63,14 +63,14 @@ namespace ByteTerrace.Ouroboros.Core
         /// <summary>
         /// Creates a new database parameter struct.
         /// </summary>
-        /// <param name="dbDataParameter"></param>
+        /// <param name="dbDataParameter">The <see cref="IDbDataParameter"/> that the parameter will be derived from.</param>
         public static DbParameter New(IDbDataParameter dbDataParameter) =>
             new(dbDataParameter.Direction, dbDataParameter.ParameterName, dbDataParameter.DbType, dbDataParameter.Value);
 
         /// <summary>
-        /// Convert this struct to a <see cref="IDbDataParameter"/>.
+        /// Convert this struct to an <see cref="IDbDataParameter"/>.
         /// </summary>
-        /// <param name="command"></param>
+        /// <param name="command">The command that the parameter will be derived from.</param>
         public IDbDataParameter ToIDbDataParameter(IDbCommand command) {
             var parameter = command.CreateParameter();
 

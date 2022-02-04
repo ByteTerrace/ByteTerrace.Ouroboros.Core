@@ -5,6 +5,7 @@ namespace ByteTerrace.Ouroboros.Core
     /// <summary>
     /// Represents a set of fields from a database row.
     /// </summary>
+    /// <param name="FieldValues"></param>
     public readonly record struct DbRow(
         IReadOnlyList<object> FieldValues
     )

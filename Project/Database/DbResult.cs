@@ -3,8 +3,8 @@
     /// <summary>
     /// Represents the result of a database command.
     /// </summary>
-    /// <param name="Parameters"></param>
-    /// <param name="ResultCode"></param>
+    /// <param name="Parameters">The parameters returned by the stored procedure.</param>
+    /// <param name="ResultCode">The result code returned by the stored procedure.</param>
     public readonly record struct DbResult(
         IDictionary<string, DbParameter>? Parameters,
         int ResultCode
@@ -13,8 +13,8 @@
         /// <summary>
         /// Creates a new database result struct.
         /// </summary>
-        /// <param name="resultCode"></param>
-        /// <param name="parameters"></param>
+        /// <param name="parameters">The parameters returned by the stored procedure.</param>
+        /// <param name="resultCode">The result code returned by the stored procedure.</param>
         public static DbResult New(int resultCode, IList<DbParameter>? parameters = default) =>
             new(parameters?.ToDictionary(p => p.Name), resultCode);
 

@@ -6,6 +6,8 @@ namespace ByteTerrace.Ouroboros.Core
     /// <summary>
     /// Represents a set of rows from a database query along with the metadata about the query that returned them.
     /// </summary>
+    /// <param name="DataReader"></param>
+    /// <param name="FieldMetadata"></param>
     public readonly record struct DbResultSet(
         IDataReader DataReader,
         IReadOnlyList<DbFieldMetadata> FieldMetadata

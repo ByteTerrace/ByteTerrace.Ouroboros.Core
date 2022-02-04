@@ -9,7 +9,7 @@ namespace ByteTerrace.Ouroboros.Core
     /// <typeparam name="TDbCommand">The type of database command objects.</typeparam>
     /// <typeparam name="TDbConnection">The type of database connection objects.</typeparam>
     /// <typeparam name="TDbDataReader">The type of database reader objects.</typeparam>
-    /// <typeparam name="TDbParameter">The type of database parametr objects.</typeparam>
+    /// <typeparam name="TDbParameter">The type of database parameter objects.</typeparam>
     public interface IDatabase<TDbCommand, TDbConnection, TDbDataReader, TDbParameter> : IDisposable
         where TDbCommand : IDbCommand
         where TDbConnection : IDbConnection

@@ -4,8 +4,13 @@ using System.Data.Common;
 namespace ByteTerrace.Ouroboros.Core
 {
     /// <summary>
-    /// Provides a minimal implementation of the <see cref="IDatabase{TDbCommand, TDbDataReader, TDbParameter}"/> interface.
+    /// Provides a minimal implementation of the <see cref="IDatabase{TDbCommand, TDbConnection, TDbDataReader, TDbParameter}"/> interface.
     /// </summary>
+    /// <typeparam name="TDbCommand">The type of database command objects.</typeparam>
+    /// <typeparam name="TDbCommmandBuilder">The type of database command builder.</typeparam>
+    /// <typeparam name="TDbConnection">The type of database connection objects.</typeparam>
+    /// <typeparam name="TDbDataReader">The type of database reader objects.</typeparam>
+    /// <typeparam name="TDbParameter">The type of database parameter objects.</typeparam>
     public abstract class AbstractDatabase<TDbCommand, TDbCommmandBuilder, TDbConnection, TDbDataReader, TDbParameter> : IDatabase<TDbCommand, TDbConnection, TDbDataReader, TDbParameter>
         where TDbConnection : IDbConnection
         where TDbCommand : IDbCommand
@@ -36,7 +41,7 @@ namespace ByteTerrace.Ouroboros.Core
         }
 
         /// <summary>
-        /// Convert this class to a <see cref="IDatabase{TDbCommand, TDbConnection, TDbDataReader, TDbParameter}"/>.
+        /// Convert this class to an <see cref="IDatabase{TDbCommand, TDbConnection, TDbDataReader, TDbParameter}"/> interface.
         /// </summary>
         public IDatabase<TDbCommand, TDbConnection, TDbDataReader, TDbParameter> ToIDatabase() =>
             this;
