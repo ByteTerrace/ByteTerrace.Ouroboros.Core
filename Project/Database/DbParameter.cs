@@ -53,7 +53,7 @@ namespace ByteTerrace.Ouroboros.Core
         /// <param name="value"></param>
         /// <param name="type"></param>
         /// <param name="direction"></param>
-        public static DbParameter Create<TValue>(string name, TValue value, DbType? type = default, ParameterDirection? direction = default) {
+        public static DbParameter New<TValue>(string name, TValue value, DbType? type = default, ParameterDirection? direction = default) {
             if ((type is null) && (value is not null) && ClrTypeToDbTypeMap.TryGetValue(value.GetType().UnwrapIfNullable(), out DbType inferredDbType)) {
                 type = inferredDbType;
             }
@@ -64,7 +64,7 @@ namespace ByteTerrace.Ouroboros.Core
         /// Creates a new database parameter struct.
         /// </summary>
         /// <param name="dbDataParameter"></param>
-        public static DbParameter Create(IDbDataParameter dbDataParameter) =>
+        public static DbParameter New(IDbDataParameter dbDataParameter) =>
             new(dbDataParameter.Direction, dbDataParameter.ParameterName, dbDataParameter.DbType, dbDataParameter.Value);
 
         /// <summary>

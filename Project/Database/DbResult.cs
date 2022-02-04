@@ -15,7 +15,7 @@
         /// </summary>
         /// <param name="resultCode"></param>
         /// <param name="parameters"></param>
-        public static DbResult Create(int resultCode, IList<DbParameter>? parameters = default) =>
+        public static DbResult New(int resultCode, IList<DbParameter>? parameters = default) =>
             new(parameters?.ToDictionary(p => p.Name), resultCode);
 
         /// <summary>

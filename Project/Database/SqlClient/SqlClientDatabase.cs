@@ -12,7 +12,7 @@ namespace ByteTerrace.Ouroboros.Core
         /// 
         /// </summary>
         /// <param name="connection"></param>
-        public static SqlClientDatabase Create(SqlConnection connection) =>
+        public static SqlClientDatabase New(SqlConnection connection) =>
             new(connection);
 
         /// <summary>

@@ -5,29 +5,29 @@ namespace ByteTerrace.Ouroboros.Core
     /// <summary>
     /// Represents a database command.
     /// </summary>
-    /// <param name="CommandText"></param>
-    /// <param name="CommandTimeout"></param>
-    /// <param name="CommandType"></param>
     /// <param name="Parameters"></param>
+    /// <param name="Text"></param>
+    /// <param name="Timeout"></param>
     /// <param name="Transaction"></param>
+    /// <param name="Type"></param>
     public readonly record struct DbCommand(
-        string CommandText,
-        int CommandTimeout,
-        CommandType CommandType,
         DbParameter[]? Parameters,
-        IDbTransaction? Transaction
+        string Text,
+        int Timeout,
+        IDbTransaction? Transaction,
+        CommandType Type
     )
     {
         /// <summary>
         /// Creates a new database command struct.
         /// </summary>
-        /// <param name="commandText"></param>
-        /// <param name="commandTimeout"></param>
-        /// <param name="commandType"></param>
         /// <param name="parameters"></param>
+        /// <param name="text"></param>
+        /// <param name="timeout"></param>
         /// <param name="transaction"></param>
-        public static DbCommand Create(string commandText, int? commandTimeout = default, CommandType? commandType = default, DbParameter[]? parameters = default, IDbTransaction? transaction = default) =>
-            new(commandText, (commandTimeout ?? 17), (commandType ?? CommandType.StoredProcedure), parameters, transaction);
+        /// <param name="type"></param>
+        public static DbCommand New(string text, int? timeout = default, CommandType? type = default, DbParameter[]? parameters = default, IDbTransaction? transaction = default) =>
+            new(parameters, text, (timeout ?? 17), transaction, (type ?? CommandType.StoredProcedure));
 
         /// <summary>
         /// Convert this struct to a <see cref="IDbCommand"/>.
@@ -36,9 +36,9 @@ namespace ByteTerrace.Ouroboros.Core
         public IDbCommand ToIDbCommand(IDbConnection connection) {
             var command = connection.CreateCommand();
 
-            command.CommandText = CommandText;
-            command.CommandTimeout = CommandTimeout;
-            command.CommandType = CommandType;
+            command.CommandText = Text;
+            command.CommandTimeout = Timeout;
+            command.CommandType = Type;
 
             if (Parameters is not null) {
                 foreach (var parameter in Parameters) {
