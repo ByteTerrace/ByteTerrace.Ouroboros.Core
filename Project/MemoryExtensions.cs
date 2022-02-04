@@ -50,8 +50,8 @@ namespace ByteTerrace.Ouroboros.Core
             var beginIndex = 0;
             var cells = new ReadOnlyMemory<char>[32];
             var cellIndex = 0;
-            var delimiterVector = Vector256.Create(delimiter);
-            var escapeSentinelVector = Vector256.Create(escapeSentinel);
+            var delimiterVector = Vector128.Create(delimiter);
+            var escapeSentinelVector = Vector128.Create(escapeSentinel);
             var length = input.Length;
             var offset = 0;
             var span = input.Span;

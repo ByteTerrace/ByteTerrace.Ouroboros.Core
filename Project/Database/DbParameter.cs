@@ -54,19 +54,34 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="name">The direction of the parameter.</param>
         /// <param name="type">The database type of the parameter.</param>
         /// <param name="value">The value of the parameter.</param>
-        public static DbParameter New<TValue>(string name, TValue value, DbType? type = default, ParameterDirection? direction = default) {
+        public static DbParameter New<TValue>(
+            string name,
+            TValue value,
+            DbType? type = default,
+            ParameterDirection? direction = default
+        ) {
             if ((type is null) && (value is not null) && ClrTypeToDbTypeMap.TryGetValue(value.GetType().UnwrapIfNullable(), out DbType inferredDbType)) {
                 type = inferredDbType;
             }
 
-            return new((direction ?? ParameterDirection.Input), name, (type ?? DbType.Object), value);
+            return new(
+                Direction: (direction ?? ParameterDirection.Input),
+                Name: name,
+                Type: (type ?? DbType.Object),
+                Value: value
+            );
         }
         /// <summary>
         /// Initializes a new instance of the <see cref="DbParameter"/> struct.
         /// </summary>
         /// <param name="dbDataParameter">The <see cref="IDbDataParameter"/> that the parameter will be derived from.</param>
         public static DbParameter New(IDbDataParameter dbDataParameter) =>
-            new(dbDataParameter.Direction, dbDataParameter.ParameterName, dbDataParameter.DbType, dbDataParameter.Value);
+            new(
+                Direction: dbDataParameter.Direction,
+                Name: dbDataParameter.ParameterName,
+                Type: dbDataParameter.DbType,
+                Value: dbDataParameter.Value
+            );
 
         /// <summary>
         /// Convert this struct to an <see cref="IDbDataParameter"/>.

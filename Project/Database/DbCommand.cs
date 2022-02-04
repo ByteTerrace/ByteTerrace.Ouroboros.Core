@@ -26,8 +26,20 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="timeout">The amount of time (in seconds) to wait for the command to complete execution.</param>
         /// <param name="transaction">The transaction object that the command will be associated with.</param>
         /// <param name="type">The type of command to execute.</param>
-        public static DbCommand New(string text, DbParameter[]? parameters = default, int? timeout = default, CommandType? type = default, IDbTransaction? transaction = default) =>
-            new(parameters, text, (timeout ?? 17), transaction, (type ?? CommandType.StoredProcedure));
+        public static DbCommand New(
+            string text,
+            DbParameter[]? parameters = default,
+            int? timeout = default,
+            CommandType? type = default,
+            IDbTransaction? transaction = default
+        ) =>
+            new(
+                Parameters: parameters,
+                Text: text,
+                Timeout: (timeout ?? 17),
+                Transaction: transaction,
+                Type: (type ?? CommandType.StoredProcedure)
+            );
 
         /// <summary>
         /// Convert this struct to an <see cref="IDbCommand"/>.

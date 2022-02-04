@@ -17,8 +17,14 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         /// <param name="fieldNameToOrdinalMap">The map that takes a field name to its ordinal position.</param>
         /// <param name="fieldValues">The values of the fields in the row.</param>
-        public static DbRow New(IDictionary<string, int> fieldNameToOrdinalMap, IReadOnlyList<object> fieldValues) =>
-            new(fieldNameToOrdinalMap, fieldValues);
+        public static DbRow New(
+            IDictionary<string, int> fieldNameToOrdinalMap,
+            IReadOnlyList<object> fieldValues
+        ) =>
+            new(
+                FieldNameToOrdinalMap: fieldNameToOrdinalMap,
+                FieldValues: fieldValues
+            );
 
         /// <summary>
         /// Returns the value of the field by name.

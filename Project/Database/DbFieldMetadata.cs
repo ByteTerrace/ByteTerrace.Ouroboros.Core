@@ -21,7 +21,17 @@
         /// <param name="dbType">The database type name of the field.</param>
         /// <param name="name">The name of the field.</param>
         /// <param name="ordinal">The ordinal position of the field.</param>
-        public static DbFieldMetadata New(Type clrType, string dbType, string name, int ordinal) =>
-            new(clrType, dbType, name, ordinal);
+        public static DbFieldMetadata New(
+            Type clrType,
+            string dbType,
+            string name,
+            int ordinal
+        ) =>
+            new(
+                ClrType: clrType,
+                DbType: dbType,
+                Name: name,
+                Ordinal: ordinal
+            );
     }
 }

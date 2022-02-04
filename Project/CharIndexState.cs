@@ -9,10 +9,10 @@ namespace ByteTerrace.Ouroboros.Core
     internal ref struct CharIndexState
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int GetMask(Vector256<ushort> searchVector, Vector256<ushort> value0Vector, Vector256<ushort> value1Vector) {
-            var result = Avx2.MoveMask(Avx2.CompareEqual(value0Vector, searchVector).AsByte());
+        private static int GetMask(Vector128<ushort> searchVector, Vector128<ushort> value0Vector, Vector128<ushort> value1Vector) {
+            var result = Sse2.MoveMask(Sse2.CompareEqual(value0Vector, searchVector).AsByte());
 
-            result |= Avx2.MoveMask(Avx2.CompareEqual(value1Vector, searchVector).AsByte());
+            result |= Sse2.MoveMask(Sse2.CompareEqual(value1Vector, searchVector).AsByte());
             result &= 0b01010101010101010101010101010101;
 
             return result;
@@ -36,31 +36,31 @@ namespace ByteTerrace.Ouroboros.Core
         private bool MoveNext() =>
             (0 != (m_mask = Bmi1.ResetLowestSetBit(m_mask)));
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool MoveNext(Vector256<ushort> searchVector, Vector256<ushort> value0, Vector256<ushort> value1) =>
+        private bool MoveNext(Vector128<ushort> searchVector, Vector128<ushort> value0, Vector128<ushort> value1) =>
             (0 != (m_mask = ((uint)GetMask(searchVector, value0, value1))));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public bool MoveNext(ref char buffer, ref int offset, int length, Vector256<ushort> value0Vector, Vector256<ushort> value1Vector) {
+        public bool MoveNext(ref char buffer, ref int offset, int length, Vector128<ushort> value0Vector, Vector128<ushort> value1Vector) {
             if (MoveNext()) {
-                m_current = (offset + ((int)(Bmi1.TrailingZeroCount(m_mask) >> 1)) - 16);
+                m_current = (offset + ((int)(Bmi1.TrailingZeroCount(m_mask) >> 1)) - 8);
 
                 return true;
             }
 
-            if ((offset + 15) < length) {
+            if ((offset + 7) < length) {
                 do {
                     if (MoveNext(
-                        searchVector: LoadVector256(ref buffer, offset),
+                        searchVector: LoadVector128(ref buffer, offset),
                         value0: value0Vector,
                         value1: value1Vector
                     )) {
                         m_current = (offset + ((int)(Bmi1.TrailingZeroCount(m_mask) >> 1)));
-                        offset += 16;
+                        offset += 8;
 
                         return true;
                     }
 
-                    offset += 16;
+                    offset += 8;
                 } while (offset < length);
             }
 

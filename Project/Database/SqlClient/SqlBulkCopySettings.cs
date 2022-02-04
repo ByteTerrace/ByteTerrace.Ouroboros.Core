@@ -39,15 +39,41 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
         /// <param name="targetTableName">The name of the target table.</param>
         /// <param name="timeout">The amount of time (in seconds) to wait for the operation to complete execution.</param>
         /// <param name="transaction">The transaction object that the operation will be associated with.</param>
-        public static SqlBulkCopySettings New(IDataReader sourceDataReader, string targetSchemaName, string targetTableName, int batchSize = 25000, SqlBulkCopyColumnMapping[]? columnMappings = default, bool enableStreaming = true, SqlBulkCopyOptions options = SqlBulkCopyOptions.Default, int timeout = 17, SqlTransaction? transaction = default) {
+        public static SqlBulkCopySettings New(
+            IDataReader sourceDataReader,
+            string targetSchemaName,
+            string targetTableName,
+            int batchSize = 25000,
+            SqlBulkCopyColumnMapping[]? columnMappings = default,
+            bool enableStreaming = true,
+            SqlBulkCopyOptions options = SqlBulkCopyOptions.Default,
+            int timeout = 17,
+            SqlTransaction? transaction = default
+        ) {
             if ((columnMappings is null) || (0 < columnMappings.Length)) {
                 columnMappings = Enumerable
-                    .Range(0, sourceDataReader.FieldCount)
-                    .Select(ordinal => new SqlBulkCopyColumnMapping(ordinal, ordinal))
+                    .Range(
+                        count: sourceDataReader.FieldCount,
+                        start: 0
+                    )
+                    .Select(ordinal => new SqlBulkCopyColumnMapping(
+                        destinationOrdinal: ordinal,
+                        sourceColumnOrdinal: ordinal
+                    ))
                     .ToArray();
             }
 
-            return new(batchSize, columnMappings, enableStreaming, options, sourceDataReader, targetSchemaName, targetTableName, timeout, transaction);
+            return new(
+                BatchSize: batchSize,
+                ColumnMappings: columnMappings,
+                EnableStreaming: enableStreaming,
+                Options: options,
+                SourceDataReader: sourceDataReader,
+                TargetSchemaName: targetSchemaName,
+                TargetTableName: targetTableName,
+                Timeout: timeout,
+                Transaction: transaction
+            );
         }
     }
 }

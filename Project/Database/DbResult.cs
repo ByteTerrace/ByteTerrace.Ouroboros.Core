@@ -15,8 +15,14 @@
         /// </summary>
         /// <param name="parameters">The parameters returned by the stored procedure.</param>
         /// <param name="resultCode">The result code returned by the stored procedure.</param>
-        public static DbResult New(int resultCode, IList<DbParameter>? parameters = default) =>
-            new(parameters?.ToDictionary(p => p.Name), resultCode);
+        public static DbResult New(
+            int resultCode,
+            IList<DbParameter>? parameters = default
+        ) =>
+            new(
+                Parameters: parameters?.ToDictionary(p => p.Name),
+                ResultCode: resultCode
+            );
 
         /// <summary>
         /// Returns the value of the specified parameter.

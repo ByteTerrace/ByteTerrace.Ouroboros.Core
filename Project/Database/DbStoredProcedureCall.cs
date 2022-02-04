@@ -17,8 +17,14 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         /// <param name="name">The name of the stored procedure.</param>
         /// <param name="parameters">The parameters that will be supplied to the stored procedure.</param>
-        public static DbStoredProcedureCall New(string name, params DbParameter[]? parameters) =>
-            new(name, parameters);
+        public static DbStoredProcedureCall New(
+            string name,
+            params DbParameter[]? parameters
+        ) =>
+            new(
+                Name: name,
+                Parameters: parameters
+            );
 
         /// <summary>
         /// Convert this struct to an <see cref="IDbCommand"/>.

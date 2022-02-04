@@ -50,10 +50,10 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="name">The name of the table or view.</param>
         /// <param name="schemaName">The name of the schema.</param>
         public IEnumerable<DbRow> EnumerateTableOrView(string schemaName, string name) {
-            schemaName = CommandBuilder.UnquoteIdentifier(schemaName);
-            schemaName = CommandBuilder.QuoteIdentifier(schemaName);
             name = CommandBuilder.UnquoteIdentifier(name);
             name = CommandBuilder.QuoteIdentifier(name);
+            schemaName = CommandBuilder.UnquoteIdentifier(schemaName);
+            schemaName = CommandBuilder.QuoteIdentifier(schemaName);
 
             using var command = ((TDbCommand)DbCommand
                 .New(
@@ -81,10 +81,10 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="parameters">The parameters that will be supplied to the table-valued function.</param>
         /// <param name="schemaName">The name of the schema.</param>
         public IEnumerable<DbRow> EnumerateTableValuedFunction(string schemaName, string name, params DbParameter[] parameters) {
-            schemaName = CommandBuilder.UnquoteIdentifier(schemaName);
-            schemaName = CommandBuilder.QuoteIdentifier(schemaName);
             name = CommandBuilder.UnquoteIdentifier(name);
             name = CommandBuilder.QuoteIdentifier(name);
+            schemaName = CommandBuilder.UnquoteIdentifier(schemaName);
+            schemaName = CommandBuilder.QuoteIdentifier(schemaName);
 
             using var command = ((TDbCommand)DbCommand
                 .New(
