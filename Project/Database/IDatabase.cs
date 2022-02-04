@@ -89,7 +89,7 @@ namespace ByteTerrace.Ouroboros.Database
             using var command = ((TDbCommand)DbCommand
                 .New(
                     parameters: parameters,
-                    text: $"select * from {schemaName}.{name}({string.Join(", ", parameters.Select(p => p.Name))});",
+                    text: $"select * from {schemaName}.{name}({string.Join(", ", parameters.Select(p => p.Name))});", // TODO: Determine if the string.Join operation makes this function susceptible to SQL injection attacks.
                     type: CommandType.Text
                 )
                 .ToIDbCommand(

@@ -6,8 +6,8 @@ namespace ByteTerrace.Ouroboros.Database
     /// <summary>
     /// Represents a set of rows from a database query along with the metadata about the query that returned them.
     /// </summary>
-    /// <param name="DataReader"></param>
-    /// <param name="FieldMetadata"></param>
+    /// <param name="DataReader">The data reader that generates the result set.</param>
+    /// <param name="FieldMetadata">The metadata of the fields that are returned by the result set.</param>
     public readonly record struct DbResultSet(
         IDataReader DataReader,
         IReadOnlyList<DbFieldMetadata> FieldMetadata
@@ -37,12 +37,21 @@ namespace ByteTerrace.Ouroboros.Database
         /// Returns an enumerator that iterates through the values in this <see cref="DbResultSet"/>.
         /// </summary>
         public IEnumerator<DbRow> GetEnumerator() {
+            var fieldCount = FieldMetadata.Count;
+            var fieldNameToOrdinalMap = new Dictionary<string, int>(capacity: fieldCount);
+
+            for (var i = 0; (i < fieldCount); ++i) {
+                var fieldMetadata = FieldMetadata[i];
+
+                fieldNameToOrdinalMap[fieldMetadata.Name] = fieldMetadata.Ordinal;
+            }
+
             while (DataReader.Read()) {
-                var fieldValues = new object[FieldMetadata.Count];
+                var fieldValues = new object[fieldCount];
 
                 DataReader.GetValues(fieldValues);
 
-                yield return DbRow.New(Array.AsReadOnly(fieldValues));
+                yield return DbRow.New(fieldNameToOrdinalMap, Array.AsReadOnly(fieldValues));
             }
         }
         /// <summary>

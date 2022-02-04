@@ -4,96 +4,70 @@ using System.Data;
 namespace ByteTerrace.Ouroboros.Database.SqlClient
 {
     /// <summary>
-    /// 
+    /// Provides an implementation of the <see cref="AbstractDatabase{TDbCommand, TDbCommmandBuilder, TDbConnection, TDbDataReader, TDbParameter}" /> class for Microsoft SQL Server.
     /// </summary>
     public sealed class SqlClientDatabase : AbstractDatabase<SqlCommand, SqlCommandBuilder, SqlConnection, SqlDataReader, SqlParameter>
     {
         /// <summary>
-        /// 
+        /// Initializes a new instance of the <see cref="SqlClientDatabase"/> class.
         /// </summary>
-        /// <param name="connection"></param>
+        /// <param name="connection">The connection that will be used to communicate with a database.</param>
         public static SqlClientDatabase New(SqlConnection connection) =>
             new(connection);
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="connection"></param>
         private SqlClientDatabase(SqlConnection connection) : base(new SqlCommandBuilder(), connection) { }
 
-        private SqlBulkCopy InitializeBulkCopy(IDataReader dataReader, SqlConnection dbConnection, string schemaName, string tableName, params SqlBulkCopyColumnMapping[]? columnMappings) {
-            if ((columnMappings is null) || (0 < columnMappings.Length)) {
-                columnMappings = Enumerable
-                    .Range(0, dataReader.FieldCount)
-                    .Select(ordinal => new SqlBulkCopyColumnMapping(ordinal, ordinal))
-                    .ToArray();
-            }
+        private SqlBulkCopy InitializeBulkCopy(SqlBulkCopySettings bulkCopySettings) {
+            var schemaName = bulkCopySettings.TargetSchemaName;
+            var tableName = bulkCopySettings.TargetTableName;
 
             schemaName = CommandBuilder.UnquoteIdentifier(schemaName);
             schemaName = CommandBuilder.QuoteIdentifier(schemaName);
             tableName = CommandBuilder.UnquoteIdentifier(tableName);
             tableName = CommandBuilder.QuoteIdentifier(tableName);
 
-            var bulkCopy = new SqlBulkCopy(dbConnection, SqlBulkCopyOptions.CheckConstraints, null) {
-                BatchSize = 25000,
-                BulkCopyTimeout = 31,
+            var sqlBulkCopy = new SqlBulkCopy(Connection, bulkCopySettings.Options, bulkCopySettings.Transaction) {
+                BatchSize = bulkCopySettings.BatchSize,
+                BulkCopyTimeout = bulkCopySettings.Timeout,
                 DestinationTableName = $"{schemaName}.{tableName}",
-                EnableStreaming = true,
+                EnableStreaming = bulkCopySettings.EnableStreaming,
             };
 
-            foreach (var columnMapping in columnMappings) {
-                bulkCopy.ColumnMappings.Add(columnMapping);
+            foreach (var columnMapping in bulkCopySettings.ColumnMappings) {
+                sqlBulkCopy.ColumnMappings.Add(columnMapping);
             }
 
-            return bulkCopy;
+            return sqlBulkCopy;
         }
 
         /// <summary>
-        /// 
+        /// Copies all rows in the supplied data reader to the specified target.
         /// </summary>
-        /// <param name="sourceDataReader"></param>
-        /// <param name="targetSchemaName"></param>
-        /// <param name="targetTableName"></param>
-        /// <param name="columnMappings"></param>
-        public void ExecuteBulkCopy(IDataReader sourceDataReader, string targetSchemaName, string targetTableName, SqlBulkCopyColumnMapping[]? columnMappings = default) {
-            using var bulkCopy = InitializeBulkCopy(
-                columnMappings: columnMappings,
-                dataReader: sourceDataReader,
-                dbConnection: Connection,
-                schemaName: targetSchemaName,
-                tableName: targetTableName
-            );
+        /// <param name="bulkCopySettings">The settings that will be used during the bulk copy operation.</param>
+        public void ExecuteBulkCopy(SqlBulkCopySettings bulkCopySettings) {
+            using var bulkCopy = InitializeBulkCopy(bulkCopySettings: bulkCopySettings);
 
-            ((IDatabase<SqlCommand, SqlConnection, SqlDataReader, SqlParameter>)this).OpenConnection();
-            bulkCopy.WriteToServer(reader: sourceDataReader);
+            ToIDatabase().OpenConnection();
+            bulkCopy.WriteToServer(reader: bulkCopySettings.SourceDataReader);
         }
         /// <summary>
-        /// 
+        /// Copies all rows in the supplied data reader to the specified target.
         /// </summary>
-        /// <param name="sourceDataReader"></param>
-        /// <param name="targetSchemaName"></param>
-        /// <param name="targetTableName"></param>
-        /// <param name="columnMappings"></param>
-        /// <param name="cancellationToken"></param>
-        public async ValueTask ExecuteBulkCopyAsync(IDataReader sourceDataReader, string targetSchemaName, string targetTableName, SqlBulkCopyColumnMapping[]? columnMappings = default, CancellationToken cancellationToken = default) {
-            using var bulkCopy = InitializeBulkCopy(
-                columnMappings: columnMappings,
-                dataReader: sourceDataReader,
-                dbConnection: Connection,
-                schemaName: targetSchemaName,
-                tableName: targetTableName
-            );
+        /// <param name="bulkCopySettings">The settings that will be used during the bulk copy operation.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask ExecuteBulkCopyAsync(SqlBulkCopySettings bulkCopySettings, CancellationToken cancellationToken = default) {
+            using var bulkCopy = InitializeBulkCopy(bulkCopySettings: bulkCopySettings);
 
             await OpenConnectionAsync(cancellationToken: cancellationToken);
             await bulkCopy.WriteToServerAsync(
                 cancellationToken: cancellationToken,
-                reader: sourceDataReader
+                reader: bulkCopySettings.SourceDataReader
             );
         }
         /// <summary>
-        /// 
+        /// Attempts to open the underlying connection asynchronously.
         /// </summary>
-        /// <param name="cancellationToken"></param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         public async ValueTask OpenConnectionAsync(CancellationToken cancellationToken = default) {
             var connectionState = Connection.State;
 

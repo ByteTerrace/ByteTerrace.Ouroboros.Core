@@ -13,7 +13,7 @@ namespace ByteTerrace.Ouroboros.Database
     )
     {
         /// <summary>
-        /// Creates a new database stored procedure call struct.
+        /// Initializes a new instance of the <see cref="DbStoredProcedureCall"/> struct.
         /// </summary>
         /// <param name="name">The name of the stored procedure.</param>
         /// <param name="parameters">The parameters that will be supplied to the stored procedure.</param>

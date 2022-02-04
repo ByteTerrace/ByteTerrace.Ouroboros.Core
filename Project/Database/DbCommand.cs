@@ -19,7 +19,7 @@ namespace ByteTerrace.Ouroboros.Database
     )
     {
         /// <summary>
-        /// Creates a new database command struct.
+        /// Initializes a new instance of the <see cref="DbCommand"/> struct.
         /// </summary>
         /// <param name="parameters">The parameters that will be supplied to the command.</param>
         /// <param name="text">The text of the command to execute.</param>

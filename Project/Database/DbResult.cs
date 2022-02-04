@@ -11,7 +11,7 @@
     )
     {
         /// <summary>
-        /// Creates a new database result struct.
+        /// Initializes a new instance of the <see cref="DbResult"/> struct.
         /// </summary>
         /// <param name="parameters">The parameters returned by the stored procedure.</param>
         /// <param name="resultCode">The result code returned by the stored procedure.</param>

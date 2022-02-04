@@ -47,7 +47,7 @@ namespace ByteTerrace.Ouroboros.Database
         });
 
         /// <summary>
-        /// Creates a new database parameter struct.
+        /// Initializes a new instance of the <see cref="DbParameter"/> struct.
         /// </summary>
         /// <typeparam name="TValue">The common language runtime type type of the parameter.</typeparam>
         /// <param name="direction">The direction of the parameter.</param>
@@ -62,7 +62,7 @@ namespace ByteTerrace.Ouroboros.Database
             return new((direction ?? ParameterDirection.Input), name, (type ?? DbType.Object), value);
         }
         /// <summary>
-        /// Creates a new database parameter struct.
+        /// Initializes a new instance of the <see cref="DbParameter"/> struct.
         /// </summary>
         /// <param name="dbDataParameter">The <see cref="IDbDataParameter"/> that the parameter will be derived from.</param>
         public static DbParameter New(IDbDataParameter dbDataParameter) =>

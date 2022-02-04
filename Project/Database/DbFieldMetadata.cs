@@ -15,7 +15,7 @@
     )
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="DbFieldMetadata"/> class.
+        /// Initializes a new instance of the <see cref="DbFieldMetadata"/> struct.
         /// </summary>
         /// <param name="clrType">The common language runtime type of the field.</param>
         /// <param name="dbType">The database type name of the field.</param>
