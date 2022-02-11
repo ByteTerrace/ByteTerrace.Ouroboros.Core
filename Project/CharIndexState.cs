@@ -61,7 +61,7 @@ namespace ByteTerrace.Ouroboros.Core
                     }
 
                     offset += 8;
-                } while (offset < length);
+                } while ((offset + 7) < length);
             }
 
             if (offset < length) {
