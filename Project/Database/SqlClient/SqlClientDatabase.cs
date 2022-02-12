@@ -4,9 +4,9 @@ using System.Data.Common;
 namespace ByteTerrace.Ouroboros.Database.SqlClient
 {
     /// <summary>
-    /// Provides an implementation of the <see cref="Database" /> class for Microsoft SQL Server.
+    /// Provides an implementation of the <see cref="GenericDatabase" /> class for Microsoft SQL Server.
     /// </summary>
-    public sealed class SqlClientDatabase : Database
+    public sealed class SqlClientDatabase : GenericDatabase
     {
         /// <summary>
         /// The invariant name of the provider that will be used when constructing instances of the <see cref="SqlClientDatabase"/> class.

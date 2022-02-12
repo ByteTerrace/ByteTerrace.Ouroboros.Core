@@ -84,7 +84,7 @@ namespace ByteTerrace.Ouroboros.Database
             );
 
         /// <summary>
-        /// Convert this struct to an <see cref="IDbDataParameter"/>.
+        /// Convert this instance to the <see cref="IDbDataParameter"/> interface.
         /// </summary>
         /// <param name="command">The command that the parameter will be derived from.</param>
         public IDbDataParameter ToIDbDataParameter(IDbCommand command) {

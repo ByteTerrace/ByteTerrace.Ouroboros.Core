@@ -5,14 +5,14 @@ namespace ByteTerrace.Ouroboros.Database
     /// <summary>
     /// Provides a minimal implementation of the <see cref="IDatabase"/> interface.
     /// </summary>
-    public class Database : IDatabase
+    public class GenericDatabase : IDatabase
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="Database"/> class.
+        /// Initializes a new instance of the <see cref="GenericDatabase"/> class.
         /// </summary>
         /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
         /// <param name="providerInvariantName">The invariant provider name.</param>
-        public static Database New(string providerInvariantName, string connectionString) =>
+        public static GenericDatabase New(string providerInvariantName, string connectionString) =>
             new(
                 connectionString: connectionString,
                 providerInvariantName: providerInvariantName
@@ -24,11 +24,11 @@ namespace ByteTerrace.Ouroboros.Database
         public DbConnection Connection { get; init; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Database"/> class.
+        /// Initializes a new instance of the <see cref="GenericDatabase"/> class.
         /// </summary>
         /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
         /// <param name="providerInvariantName">The invariant provider name.</param>
-        protected Database(string providerInvariantName, string connectionString) {
+        protected GenericDatabase(string providerInvariantName, string connectionString) {
             var providerFactory = DbProviderFactories.GetFactory(providerInvariantName: providerInvariantName);
 
             CommandBuilder = (providerFactory.CreateCommandBuilder() ?? throw new NullReferenceException(message: "Unable to construct a command builder from the specified provider factory."));
@@ -45,7 +45,7 @@ namespace ByteTerrace.Ouroboros.Database
         }
 
         /// <summary>
-        /// Convert this class to an <see cref="IDatabase"/> interface.
+        /// Convert this instance to the <see cref="IDatabase"/> interface.
         /// </summary>
         public IDatabase ToIDatabase() =>
             this;
