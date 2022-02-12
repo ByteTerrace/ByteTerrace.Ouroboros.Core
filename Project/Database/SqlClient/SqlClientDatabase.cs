@@ -4,16 +4,17 @@ using System.Data.Common;
 namespace ByteTerrace.Ouroboros.Database.SqlClient
 {
     /// <summary>
-    /// Provides an implementation of the <see cref="AbstractDatabase" /> class for Microsoft SQL Server.
+    /// Provides an implementation of the <see cref="Database" /> class for Microsoft SQL Server.
     /// </summary>
-    public sealed class SqlClientDatabase : AbstractDatabase
+    public sealed class SqlClientDatabase : Database
     {
-        private const string ProviderInvariantName = "Microsoft.Data.SqlClient";
-
-        private static SqlClientFactory? ProviderFactory { get; }
+        /// <summary>
+        /// The invariant name of the provider that will be used when constructing instances of the <see cref="SqlClientDatabase"/> class.
+        /// </summary>
+        public const string ProviderInvariantName = "Microsoft.Data.SqlClient";
 
         static SqlClientDatabase() {
-            if (!IDatabase.TryGetProviderFactory(
+            if (!DbProviderFactories.TryGetFactory(
                 factory: out _,
                 providerInvariantName: ProviderInvariantName
             )) {
@@ -22,46 +23,30 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
                     providerInvariantName: ProviderInvariantName
                 );
             }
-
-            if (IDatabase.TryGetProviderFactory(
-                factory: out var clientFactory,
-                providerInvariantName: ProviderInvariantName
-            )) {
-                ProviderFactory = ((SqlClientFactory)clientFactory!);
-            }
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SqlClientDatabase"/> class.
         /// </summary>
-        /// <param name="connectionString"></param>
-        public static SqlClientDatabase New(string connectionString) {
-            if (ProviderFactory is null) {
-                throw new NullReferenceException(message: $"The {ProviderInvariantName} provider factory is null.");
-            }
+        /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
+        public static SqlClientDatabase New(string connectionString) =>
+            new(connectionString: connectionString);
 
-            var clientDatabase = new SqlClientDatabase(providerFactory: ProviderFactory);
-
-            clientDatabase.Connection.ConnectionString = connectionString;
-
-            return clientDatabase;
-        }
-
-        private SqlClientDatabase(SqlClientFactory providerFactory) : base(providerFactory: providerFactory) { }
+        private SqlClientDatabase(string connectionString) : base(
+            connectionString: connectionString,
+            providerInvariantName: ProviderInvariantName
+        ) { }
 
         private SqlBulkCopy InitializeBulkCopy(SqlBulkCopySettings bulkCopySettings) {
-            var schemaName = bulkCopySettings.TargetSchemaName;
-            var tableName = bulkCopySettings.TargetTableName;
-
-            schemaName = CommandBuilder.UnquoteIdentifier(schemaName);
-            schemaName = CommandBuilder.QuoteIdentifier(schemaName);
-            tableName = CommandBuilder.UnquoteIdentifier(tableName);
-            tableName = CommandBuilder.QuoteIdentifier(tableName);
-
             var sqlBulkCopy = new SqlBulkCopy(((SqlConnection)Connection), bulkCopySettings.Options, bulkCopySettings.Transaction) {
                 BatchSize = bulkCopySettings.BatchSize,
                 BulkCopyTimeout = bulkCopySettings.Timeout,
-                DestinationTableName = $"{schemaName}.{tableName}",
+                DestinationTableName = DbIdentifier.New(
+                        commandBuilder: CommandBuilder,
+                        objectName: bulkCopySettings.TargetTableName,
+                        schemaName: bulkCopySettings.TargetSchemaName
+                    )
+                    .ToString(),
                 EnableStreaming = bulkCopySettings.EnableStreaming,
             };
 

@@ -31,14 +31,6 @@ namespace ByteTerrace.Ouroboros.Database
         }
 
         /// <summary>
-        /// Attempts to get a new provider factory for the specified invariant provider name.
-        /// </summary>
-        /// <param name="factory">The <see cref="DbProviderFactory"/> that is associated with the specified invariant provider name, if found.</param>
-        /// <param name="providerInvariantName">The invariant provider name to look up.</param>
-        public static bool TryGetProviderFactory(string providerInvariantName, out DbProviderFactory? factory) =>
-            DbProviderFactories.TryGetFactory(providerInvariantName: providerInvariantName, out factory);
-
-        /// <summary>
         /// Gets the default database command builder.
         /// </summary>
         DbCommandBuilder CommandBuilder { get; init; }
@@ -77,10 +69,11 @@ namespace ByteTerrace.Ouroboros.Database
             string schemaName,
             string objectName
         ) {
-            var selectStatement = CreateSelectWildcardFromStatement(
-                    objectName: objectName,
-                    schemaName: schemaName
-                );
+            var tableIdentifier = CreateIdentifier(
+                objectName: objectName,
+                schemaName: schemaName
+            );
+            var selectStatement = $"select * from {tableIdentifier};";
 
             return ((System.Data.Common.DbCommand)DbCommand
                 .New(
@@ -90,11 +83,6 @@ namespace ByteTerrace.Ouroboros.Database
                 .ToIDbCommand(connection: Connection)
             );
         }
-        private string CreateSelectWildcardFromStatement(
-            string schemaName,
-            string objectName
-        ) =>
-            $"select * from {CreateIdentifier(objectName: objectName, schemaName: schemaName)};";
 
         /// <summary>
         /// Begins a database transaction.
