@@ -1,21 +1,53 @@
 ﻿using Microsoft.Data.SqlClient;
-using System.Data;
+using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database.SqlClient
 {
     /// <summary>
-    /// Provides an implementation of the <see cref="AbstractDatabase{TDbCommand, TDbCommmandBuilder, TDbConnection, TDbDataReader, TDbParameter, TDbTransaction}" /> class for Microsoft SQL Server.
+    /// Provides an implementation of the <see cref="AbstractDatabase{TDbCommand, TDbDataReader, TDbParameter, TDbTransaction}" /> class for Microsoft SQL Server.
     /// </summary>
-    public sealed class SqlClientDatabase : AbstractDatabase<SqlCommand, SqlCommandBuilder, SqlConnection, SqlDataReader, SqlParameter, SqlTransaction>
+    public sealed class SqlClientDatabase : AbstractDatabase<SqlCommand, SqlDataReader, SqlParameter, SqlTransaction>
     {
+        private const string ProviderInvariantName = "Microsoft.Data.SqlClient";
+
+        private static SqlClientFactory? ProviderFactory { get; }
+
+        static SqlClientDatabase() {
+            if (!IDatabase<SqlCommand, SqlDataReader, SqlParameter, SqlTransaction>.TryGetProviderFactory(
+                factory: out _,
+                providerInvariantName: ProviderInvariantName
+            )) {
+                DbProviderFactories.RegisterFactory(
+                    factory: SqlClientFactory.Instance,
+                    providerInvariantName: ProviderInvariantName
+                );
+            }
+
+            if (IDatabase<SqlCommand, SqlDataReader, SqlParameter, SqlTransaction>.TryGetProviderFactory(
+                factory: out var clientFactory,
+                providerInvariantName: ProviderInvariantName
+            )) {
+                ProviderFactory = ((SqlClientFactory)clientFactory!);
+            }
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="SqlClientDatabase"/> class.
         /// </summary>
-        /// <param name="connection">The connection that will be used to communicate with a database.</param>
-        public static SqlClientDatabase New(SqlConnection connection) =>
-            new(connection);
+        /// <param name="connectionString"></param>
+        public static SqlClientDatabase New(string connectionString) {
+            if (ProviderFactory is null) {
+                throw new NullReferenceException(message: $"The {ProviderInvariantName} provider factory is null.");
+            }
 
-        private SqlClientDatabase(SqlConnection connection) : base(new SqlCommandBuilder(), connection) { }
+            var clientDatabase = new SqlClientDatabase(providerFactory: ProviderFactory);
+
+            clientDatabase.Connection.ConnectionString = connectionString;
+
+            return clientDatabase;
+        }
+
+        private SqlClientDatabase(SqlClientFactory providerFactory) : base(providerFactory: providerFactory) { }
 
         private SqlBulkCopy InitializeBulkCopy(SqlBulkCopySettings bulkCopySettings) {
             var schemaName = bulkCopySettings.TargetSchemaName;

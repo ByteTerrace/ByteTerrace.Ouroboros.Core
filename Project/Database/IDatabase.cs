@@ -7,34 +7,38 @@ namespace ByteTerrace.Ouroboros.Database
     /// Exposes low-level database operations.
     /// </summary>
     /// <typeparam name="TDbCommand">The type of database command objects.</typeparam>
-    /// <typeparam name="TDbCommandBuilder">The type of database command buidler objects.</typeparam>
-    /// <typeparam name="TDbConnection">The type of database connection objects.</typeparam>
     /// <typeparam name="TDbDataReader">The type of database reader objects.</typeparam>
     /// <typeparam name="TDbParameter">The type of database parameter objects.</typeparam>
     /// <typeparam name="TDbTransaction">The type of database transaction objects.</typeparam>
-    public interface IDatabase<TDbCommand, TDbCommandBuilder, TDbConnection, TDbDataReader, TDbParameter, TDbTransaction> : IDisposable
+    public interface IDatabase<TDbCommand, TDbDataReader, TDbParameter, TDbTransaction> : IDisposable
         where TDbCommand : System.Data.Common.DbCommand, IDbCommand
-        where TDbCommandBuilder : DbCommandBuilder
-        where TDbConnection : DbConnection, IDbConnection
         where TDbDataReader : DbDataReader, IDataReader
         where TDbParameter : System.Data.Common.DbParameter, IDbDataParameter
         where TDbTransaction : DbTransaction, IDbTransaction
     {
         /// <summary>
+        /// Attempts to get a new provider factory for the specified invariant provider name.
+        /// </summary>
+        /// <param name="factory">The <see cref="DbProviderFactory"/> that is associated with the specified invariant provider name, if found.</param>
+        /// <param name="providerInvariantName">The invariant provider name to look up.</param>
+        public static bool TryGetProviderFactory(string providerInvariantName, out DbProviderFactory? factory) =>
+            DbProviderFactories.TryGetFactory(providerInvariantName: providerInvariantName, out factory);
+
+        /// <summary>
         /// Gets the default database command builder.
         /// </summary>
-        TDbCommandBuilder CommandBuilder { get; }
+        DbCommandBuilder CommandBuilder { get; init; }
         /// <summary>
         /// Gets the underlying database connection.
         /// </summary>
-        TDbConnection Connection { get; }
+        DbConnection Connection { get; init; }
 
         /// <summary>
         /// Begins a database transaction.
         /// </summary>
         /// <param name="isolationLevel">Specifies the locking behavior to use during the transaction.</param>
         public TDbTransaction BeginTransaction(IsolationLevel isolationLevel) =>
-            ((TDbTransaction)Connection.BeginTransaction(il: isolationLevel));
+            ((TDbTransaction)Connection.BeginTransaction(isolationLevel: isolationLevel));
         /// <summary>
         /// Begins a database transaction asynchronously.
         /// </summary>
