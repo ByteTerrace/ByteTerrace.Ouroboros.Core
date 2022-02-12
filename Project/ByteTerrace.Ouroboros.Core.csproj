@@ -21,7 +21,7 @@
         <RepositoryUrl></RepositoryUrl>
         <SignAssembly>True</SignAssembly>
         <TargetFrameworks>net6.0</TargetFrameworks>
-        <Version>1.0.0-preview10</Version>
+        <Version>1.0.0-preview11</Version>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.Data.SqlClient" Version="[4.*,5)" />
@@ -32,5 +32,8 @@
     </ItemGroup>
     <ItemGroup>
         <None Include=".\..\images\icon.png" Pack="true" PackagePath="\" />
+    </ItemGroup>
+    <ItemGroup>
+      <Folder Include="Http\" />
     </ItemGroup>
 </Project>
