@@ -7,24 +7,44 @@ namespace ByteTerrace.Ouroboros.Database
     /// Exposes low-level database operations.
     /// </summary>
     /// <typeparam name="TDbCommand">The type of database command objects.</typeparam>
+    /// <typeparam name="TDbCommandBuilder">The type of database command buidler objects.</typeparam>
     /// <typeparam name="TDbConnection">The type of database connection objects.</typeparam>
     /// <typeparam name="TDbDataReader">The type of database reader objects.</typeparam>
     /// <typeparam name="TDbParameter">The type of database parameter objects.</typeparam>
-    public interface IDatabase<TDbCommand, TDbConnection, TDbDataReader, TDbParameter> : IDisposable
-        where TDbCommand : IDbCommand
-        where TDbConnection : IDbConnection
-        where TDbDataReader : IDataReader
-        where TDbParameter : IDbDataParameter
+    /// <typeparam name="TDbTransaction">The type of database transaction objects.</typeparam>
+    public interface IDatabase<TDbCommand, TDbCommandBuilder, TDbConnection, TDbDataReader, TDbParameter, TDbTransaction> : IDisposable
+        where TDbCommand : System.Data.Common.DbCommand, IDbCommand
+        where TDbCommandBuilder : DbCommandBuilder
+        where TDbConnection : DbConnection, IDbConnection
+        where TDbDataReader : DbDataReader, IDataReader
+        where TDbParameter : System.Data.Common.DbParameter, IDbDataParameter
+        where TDbTransaction : DbTransaction, IDbTransaction
     {
         /// <summary>
         /// Gets the default database command builder.
         /// </summary>
-        DbCommandBuilder CommandBuilder { get; }
+        TDbCommandBuilder CommandBuilder { get; }
         /// <summary>
         /// Gets the underlying database connection.
         /// </summary>
         TDbConnection Connection { get; }
 
+        /// <summary>
+        /// Begins a database transaction.
+        /// </summary>
+        /// <param name="isolationLevel">Specifies the locking behavior to use during the transaction.</param>
+        public TDbTransaction BeginTransaction(IsolationLevel isolationLevel) =>
+            ((TDbTransaction)Connection.BeginTransaction(il: isolationLevel));
+        /// <summary>
+        /// Begins a database transaction asynchronously.
+        /// </summary>
+        /// <param name="isolationLevel">Specifies the locking behavior to use during the transaction.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask<TDbTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken) =>
+            ((TDbTransaction)await Connection.BeginTransactionAsync(
+                cancellationToken: cancellationToken,
+                isolationLevel: isolationLevel
+            ));
         /// <summary>
         /// Creates a new database reader.
         /// </summary>
@@ -33,7 +53,7 @@ namespace ByteTerrace.Ouroboros.Database
         public TDbDataReader CreateDataReader(TDbCommand command, CommandBehavior behavior) {
             OpenConnection();
 
-            return ((TDbDataReader)command.ExecuteReader(behavior));
+            return ((TDbDataReader)command.ExecuteReader(behavior: behavior));
         }
         /// <summary>
         /// Enumerates each result set in the specified data reader.
@@ -50,10 +70,10 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="name">The name of the table or view.</param>
         /// <param name="schemaName">The name of the schema.</param>
         public IEnumerable<DbRow> EnumerateTableOrView(string schemaName, string name) {
-            name = CommandBuilder.UnquoteIdentifier(name);
-            name = CommandBuilder.QuoteIdentifier(name);
-            schemaName = CommandBuilder.UnquoteIdentifier(schemaName);
-            schemaName = CommandBuilder.QuoteIdentifier(schemaName);
+            name = CommandBuilder.UnquoteIdentifier(quotedIdentifier: name);
+            name = CommandBuilder.QuoteIdentifier(unquotedIdentifier: name);
+            schemaName = CommandBuilder.UnquoteIdentifier(quotedIdentifier: schemaName);
+            schemaName = CommandBuilder.QuoteIdentifier(unquotedIdentifier: schemaName);
 
             using var command = ((TDbCommand)DbCommand
                 .New(
@@ -66,7 +86,7 @@ namespace ByteTerrace.Ouroboros.Database
                 command: command,
                 behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult)
             );
-            using var enumerator = EnumerateResultSets(dataReader).GetEnumerator();
+            using var enumerator = EnumerateResultSets(dataReader: dataReader).GetEnumerator();
 
             if (enumerator.MoveNext()) {
                 foreach (var row in enumerator.Current) {
@@ -81,10 +101,10 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="parameters">The parameters that will be supplied to the table-valued function.</param>
         /// <param name="schemaName">The name of the schema.</param>
         public IEnumerable<DbRow> EnumerateTableValuedFunction(string schemaName, string name, params DbParameter[] parameters) {
-            name = CommandBuilder.UnquoteIdentifier(name);
-            name = CommandBuilder.QuoteIdentifier(name);
-            schemaName = CommandBuilder.UnquoteIdentifier(schemaName);
-            schemaName = CommandBuilder.QuoteIdentifier(schemaName);
+            name = CommandBuilder.UnquoteIdentifier(quotedIdentifier: name);
+            name = CommandBuilder.QuoteIdentifier(unquotedIdentifier: name);
+            schemaName = CommandBuilder.UnquoteIdentifier(quotedIdentifier: schemaName);
+            schemaName = CommandBuilder.QuoteIdentifier(unquotedIdentifier: schemaName);
 
             using var command = ((TDbCommand)DbCommand
                 .New(
@@ -100,7 +120,7 @@ namespace ByteTerrace.Ouroboros.Database
                 command: command,
                 behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult)
             );
-            using var enumerator = EnumerateResultSets(dataReader).GetEnumerator();
+            using var enumerator = EnumerateResultSets(dataReader: dataReader).GetEnumerator();
 
             if (enumerator.MoveNext()) {
                 foreach (var row in enumerator.Current) {
@@ -122,7 +142,7 @@ namespace ByteTerrace.Ouroboros.Database
                 var parameterDirection = parameter.Direction;
 
                 if ((ParameterDirection.InputOutput == parameterDirection) || (ParameterDirection.Output == parameterDirection)) {
-                    outputParameters.Add(DbParameter.New(parameter));
+                    outputParameters.Add(item: DbParameter.New(dbDataParameter: parameter));
                 }
 
                 if (ParameterDirection.ReturnValue == parameterDirection) {
@@ -142,10 +162,10 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="parameters">The parameters that will be supplied to the stored procedure.</param>
         /// <param name="schemaName">The name of the schema.</param>
         public DbResult ExecuteStoredProcedure(string schemaName, string name, params DbParameter[] parameters) {
-            schemaName = CommandBuilder.UnquoteIdentifier(schemaName);
-            schemaName = CommandBuilder.QuoteIdentifier(schemaName);
-            name = CommandBuilder.UnquoteIdentifier(name);
-            name = CommandBuilder.QuoteIdentifier(name);
+            schemaName = CommandBuilder.UnquoteIdentifier(quotedIdentifier: schemaName);
+            schemaName = CommandBuilder.QuoteIdentifier(unquotedIdentifier: schemaName);
+            name = CommandBuilder.UnquoteIdentifier(quotedIdentifier: name);
+            name = CommandBuilder.QuoteIdentifier(unquotedIdentifier: name);
 
             using var command = ((TDbCommand)DbStoredProcedureCall
                 .New(
@@ -166,6 +186,17 @@ namespace ByteTerrace.Ouroboros.Database
 
             if ((connectionState == ConnectionState.Closed) || (connectionState == ConnectionState.Broken)) {
                 Connection.Open();
+            }
+        }
+        /// <summary>
+        /// Attempts to open the underlying connection asynchronously.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask OpenConnectionAsync(CancellationToken cancellationToken) {
+            var connectionState = Connection.State;
+
+            if ((connectionState == ConnectionState.Closed) || (connectionState == ConnectionState.Broken)) {
+                await Connection.OpenAsync(cancellationToken: cancellationToken);
             }
         }
     }

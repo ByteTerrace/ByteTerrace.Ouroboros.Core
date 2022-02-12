@@ -4,9 +4,9 @@ using System.Data;
 namespace ByteTerrace.Ouroboros.Database.SqlClient
 {
     /// <summary>
-    /// Provides an implementation of the <see cref="AbstractDatabase{TDbCommand, TDbCommmandBuilder, TDbConnection, TDbDataReader, TDbParameter}" /> class for Microsoft SQL Server.
+    /// Provides an implementation of the <see cref="AbstractDatabase{TDbCommand, TDbCommmandBuilder, TDbConnection, TDbDataReader, TDbParameter, TDbTransaction}" /> class for Microsoft SQL Server.
     /// </summary>
-    public sealed class SqlClientDatabase : AbstractDatabase<SqlCommand, SqlCommandBuilder, SqlConnection, SqlDataReader, SqlParameter>
+    public sealed class SqlClientDatabase : AbstractDatabase<SqlCommand, SqlCommandBuilder, SqlConnection, SqlDataReader, SqlParameter, SqlTransaction>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SqlClientDatabase"/> class.
@@ -26,7 +26,7 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
             tableName = CommandBuilder.UnquoteIdentifier(tableName);
             tableName = CommandBuilder.QuoteIdentifier(tableName);
 
-            var sqlBulkCopy = new SqlBulkCopy(Connection, bulkCopySettings.Options, bulkCopySettings.Transaction) {
+            var sqlBulkCopy = new SqlBulkCopy(((SqlConnection)Connection), bulkCopySettings.Options, bulkCopySettings.Transaction) {
                 BatchSize = bulkCopySettings.BatchSize,
                 BulkCopyTimeout = bulkCopySettings.Timeout,
                 DestinationTableName = $"{schemaName}.{tableName}",
@@ -58,22 +58,11 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
         public async ValueTask ExecuteBulkCopyAsync(SqlBulkCopySettings bulkCopySettings, CancellationToken cancellationToken = default) {
             using var bulkCopy = InitializeBulkCopy(bulkCopySettings: bulkCopySettings);
 
-            await OpenConnectionAsync(cancellationToken: cancellationToken);
+            await ToIDatabase().OpenConnectionAsync(cancellationToken: cancellationToken);
             await bulkCopy.WriteToServerAsync(
                 cancellationToken: cancellationToken,
                 reader: bulkCopySettings.SourceDataReader
             );
-        }
-        /// <summary>
-        /// Attempts to open the underlying connection asynchronously.
-        /// </summary>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask OpenConnectionAsync(CancellationToken cancellationToken = default) {
-            var connectionState = Connection.State;
-
-            if ((connectionState == ConnectionState.Closed) || (connectionState == ConnectionState.Broken)) {
-                await Connection.OpenAsync(cancellationToken: cancellationToken);
-            }
         }
     }
 }

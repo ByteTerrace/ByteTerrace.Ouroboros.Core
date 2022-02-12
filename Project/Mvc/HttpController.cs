@@ -47,7 +47,7 @@ namespace ByteTerrace.Ouroboros.Mvc
         }
 
         [HttpGet("get")]
-        public virtual async ValueTask<ActionResult<string>> GetAsync(
+        public async ValueTask<ActionResult<string>> GetAsync(
             string uri,
             CancellationToken cancellationToken = default
         ) => Ok(
@@ -60,7 +60,7 @@ namespace ByteTerrace.Ouroboros.Mvc
             )
         );
         [HttpGet("post")]
-        public virtual async ValueTask<ActionResult<string>> PostAsync(
+        public async ValueTask<ActionResult<string>> PostAsync(
             Stream stream,
             string uri,
             CancellationToken cancellationToken = default
@@ -68,6 +68,21 @@ namespace ByteTerrace.Ouroboros.Mvc
             value: await HttpClient.PostAsync(
                 cancellationToken: cancellationToken,
                 operation: HttpPostOperation<string>.New(
+                    callback: OnResponseReceived,
+                    contentStream: stream,
+                    uri: uri
+                )
+            )
+        );
+        [HttpGet("put")]
+        public async ValueTask<ActionResult<string>> PutAsync(
+            Stream stream,
+            string uri,
+            CancellationToken cancellationToken = default
+        ) => Ok(
+            value: await HttpClient.PutAsync(
+                cancellationToken: cancellationToken,
+                operation: HttpPutOperation<string>.New(
                     callback: OnResponseReceived,
                     contentStream: stream,
                     uri: uri

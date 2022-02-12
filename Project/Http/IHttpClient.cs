@@ -29,9 +29,23 @@
         /// </summary>
         /// <typeparam name="TResult">The return type of the result.</typeparam>
         /// <param name="operation">Describes the request that will be sent.</param>
-        /// <param name="cancellationToken"></param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         public async ValueTask<TResult> PostAsync<TResult>(
            HttpPostOperation<TResult> operation,
+           CancellationToken cancellationToken = default
+        ) =>
+            await SendAsync<TResult>(
+                cancellationToken: cancellationToken,
+                operation: operation
+            ).ConfigureAwait(continueOnCapturedContext: false);
+        /// <summary>
+        /// Sends a PUT request asynchronously.
+        /// </summary>
+        /// <typeparam name="TResult">The return type of the result.</typeparam>
+        /// <param name="operation">Describes the request that will be sent.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask<TResult> PutAsync<TResult>(
+           HttpPutOperation<TResult> operation,
            CancellationToken cancellationToken = default
         ) =>
             await SendAsync<TResult>(
