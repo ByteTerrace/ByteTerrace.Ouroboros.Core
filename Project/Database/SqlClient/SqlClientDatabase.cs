@@ -4,16 +4,16 @@ using System.Data.Common;
 namespace ByteTerrace.Ouroboros.Database.SqlClient
 {
     /// <summary>
-    /// Provides an implementation of the <see cref="AbstractDatabase{TDbCommand, TDbDataReader, TDbParameter, TDbTransaction}" /> class for Microsoft SQL Server.
+    /// Provides an implementation of the <see cref="AbstractDatabase{TDbCommand, TDbDataReader, TDbTransaction}" /> class for Microsoft SQL Server.
     /// </summary>
-    public sealed class SqlClientDatabase : AbstractDatabase<SqlCommand, SqlDataReader, SqlParameter, SqlTransaction>
+    public sealed class SqlClientDatabase : AbstractDatabase<SqlCommand, SqlDataReader, SqlTransaction>
     {
         private const string ProviderInvariantName = "Microsoft.Data.SqlClient";
 
         private static SqlClientFactory? ProviderFactory { get; }
 
         static SqlClientDatabase() {
-            if (!IDatabase<SqlCommand, SqlDataReader, SqlParameter, SqlTransaction>.TryGetProviderFactory(
+            if (!IDatabase<SqlCommand, SqlDataReader, SqlTransaction>.TryGetProviderFactory(
                 factory: out _,
                 providerInvariantName: ProviderInvariantName
             )) {
@@ -23,7 +23,7 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
                 );
             }
 
-            if (IDatabase<SqlCommand, SqlDataReader, SqlParameter, SqlTransaction>.TryGetProviderFactory(
+            if (IDatabase<SqlCommand, SqlDataReader, SqlTransaction>.TryGetProviderFactory(
                 factory: out var clientFactory,
                 providerInvariantName: ProviderInvariantName
             )) {
@@ -90,11 +90,15 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
         public async ValueTask ExecuteBulkCopyAsync(SqlBulkCopySettings bulkCopySettings, CancellationToken cancellationToken = default) {
             using var bulkCopy = InitializeBulkCopy(bulkCopySettings: bulkCopySettings);
 
-            await ToIDatabase().OpenConnectionAsync(cancellationToken: cancellationToken);
-            await bulkCopy.WriteToServerAsync(
-                cancellationToken: cancellationToken,
-                reader: bulkCopySettings.SourceDataReader
-            );
+            await ToIDatabase()
+                .OpenConnectionAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+            await bulkCopy
+                .WriteToServerAsync(
+                    cancellationToken: cancellationToken,
+                    reader: bulkCopySettings.SourceDataReader
+                )
+                .ConfigureAwait(continueOnCapturedContext: false);
         }
     }
 }

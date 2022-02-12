@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 
 namespace ByteTerrace.Ouroboros.Database
 {
@@ -8,14 +9,33 @@ namespace ByteTerrace.Ouroboros.Database
     /// </summary>
     /// <typeparam name="TDbCommand">The type of database command objects.</typeparam>
     /// <typeparam name="TDbDataReader">The type of database reader objects.</typeparam>
-    /// <typeparam name="TDbParameter">The type of database parameter objects.</typeparam>
     /// <typeparam name="TDbTransaction">The type of database transaction objects.</typeparam>
-    public interface IDatabase<TDbCommand, TDbDataReader, TDbParameter, TDbTransaction> : IDisposable
+    public interface IDatabase<TDbCommand, TDbDataReader, TDbTransaction> : IDisposable
         where TDbCommand : System.Data.Common.DbCommand, IDbCommand
         where TDbDataReader : DbDataReader, IDataReader
-        where TDbParameter : System.Data.Common.DbParameter, IDbDataParameter
         where TDbTransaction : DbTransaction, IDbTransaction
     {
+        private static DbResult CreateResult(TDbCommand command, int resultCode) {
+            var outputParameters = new List<DbParameter>();
+
+            foreach (IDbDataParameter parameter in command.Parameters) {
+                var parameterDirection = parameter.Direction;
+
+                if ((ParameterDirection.InputOutput == parameterDirection) || (ParameterDirection.Output == parameterDirection)) {
+                    outputParameters.Add(item: DbParameter.New(dbDataParameter: parameter));
+                }
+
+                if (ParameterDirection.ReturnValue == parameterDirection) {
+                    resultCode = ((int)parameter.Value!);
+                }
+            }
+
+            return DbResult.New(
+                parameters: outputParameters,
+                resultCode: resultCode
+            );
+        }
+
         /// <summary>
         /// Attempts to get a new provider factory for the specified invariant provider name.
         /// </summary>
@@ -45,10 +65,13 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="isolationLevel">Specifies the locking behavior to use during the transaction.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         public async ValueTask<TDbTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken) =>
-            ((TDbTransaction)await Connection.BeginTransactionAsync(
-                cancellationToken: cancellationToken,
-                isolationLevel: isolationLevel
-            ));
+            ((TDbTransaction)await Connection
+                .BeginTransactionAsync(
+                    cancellationToken: cancellationToken,
+                    isolationLevel: isolationLevel
+                )
+                .ConfigureAwait(continueOnCapturedContext: false)
+            );
         /// <summary>
         /// Creates a new database reader.
         /// </summary>
@@ -67,6 +90,19 @@ namespace ByteTerrace.Ouroboros.Database
             do {
                 yield return DbResultSet.New(dataReader: dataReader);
             } while (dataReader.NextResult());
+        }
+        /// <summary>
+        /// Enumerates each result set in the specified data reader asynchronously.
+        /// </summary>
+        /// <param name="dataReader">The data reader that will be enumerated.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async IAsyncEnumerable<DbResultSet> EnumerateResultSetsAsync(TDbDataReader dataReader, [EnumeratorCancellation] CancellationToken cancellationToken) {
+            do {
+                yield return DbResultSet.New(dataReader: dataReader);
+            } while (await dataReader
+                .NextResultAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false)
+            );
         }
         /// <summary>
         /// Creates a new database reader from the specified table or view name and then enumerates each row.
@@ -139,24 +175,25 @@ namespace ByteTerrace.Ouroboros.Database
         public DbResult Execute(TDbCommand command) {
             OpenConnection();
 
-            var outputParameters = new List<DbParameter>();
-            var resultCode = command.ExecuteNonQuery();
+            return CreateResult(
+                command: command,
+                resultCode: command.ExecuteNonQuery()
+            );
+        }
+        /// <summary>
+        /// Executes a database command asynchronously.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="command">The database command that will be executed.</param>
+        public async ValueTask<DbResult> ExecuteAsync(TDbCommand command, CancellationToken cancellationToken) {
+            await OpenConnectionAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
 
-            foreach (IDbDataParameter parameter in command.Parameters) {
-                var parameterDirection = parameter.Direction;
-
-                if ((ParameterDirection.InputOutput == parameterDirection) || (ParameterDirection.Output == parameterDirection)) {
-                    outputParameters.Add(item: DbParameter.New(dbDataParameter: parameter));
-                }
-
-                if (ParameterDirection.ReturnValue == parameterDirection) {
-                    resultCode = ((int)parameter.Value!);
-                }
-            }
-
-            return DbResult.New(
-                parameters: outputParameters,
-                resultCode: resultCode
+            return CreateResult(
+                command: command,
+                resultCode: await command
+                    .ExecuteNonQueryAsync(cancellationToken: cancellationToken)
+                    .ConfigureAwait(continueOnCapturedContext: false)
             );
         }
         /// <summary>
@@ -200,7 +237,9 @@ namespace ByteTerrace.Ouroboros.Database
             var connectionState = Connection.State;
 
             if ((connectionState == ConnectionState.Closed) || (connectionState == ConnectionState.Broken)) {
-                await Connection.OpenAsync(cancellationToken: cancellationToken);
+                await Connection
+                    .OpenAsync(cancellationToken: cancellationToken)
+                    .ConfigureAwait(continueOnCapturedContext: false);
             }
         }
     }

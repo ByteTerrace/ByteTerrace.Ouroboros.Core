@@ -17,7 +17,7 @@
         /// <param name="resultCode">The result code returned by the stored procedure.</param>
         public static DbResult New(
             int resultCode,
-            IList<DbParameter>? parameters = default
+            IReadOnlyList<DbParameter>? parameters = default
         ) =>
             new(
                 Parameters: parameters?.ToDictionary(p => p.Name),

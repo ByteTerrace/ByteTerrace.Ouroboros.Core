@@ -4,16 +4,14 @@ using System.Data.Common;
 namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
-    /// Provides a minimal implementation of the <see cref="IDatabase{TDbCommand, TDbDataReader, TDbParameter, TDbTransaction}"/> interface.
+    /// Provides a minimal implementation of the <see cref="IDatabase{TDbCommand, TDbDataReader, TDbTransaction}"/> interface.
     /// </summary>
     /// <typeparam name="TDbCommand">The type of database command objects.</typeparam>
     /// <typeparam name="TDbDataReader">The type of database reader objects.</typeparam>
-    /// <typeparam name="TDbParameter">The type of database parameter objects.</typeparam>
     /// <typeparam name="TDbTransaction">The type of database transaction objects.</typeparam>
-    public abstract class AbstractDatabase<TDbCommand, TDbDataReader, TDbParameter, TDbTransaction> : IDatabase<TDbCommand, TDbDataReader, TDbParameter, TDbTransaction>
+    public abstract class AbstractDatabase<TDbCommand, TDbDataReader, TDbTransaction> : IDatabase<TDbCommand, TDbDataReader, TDbTransaction>
         where TDbCommand : System.Data.Common.DbCommand, IDbCommand
         where TDbDataReader : DbDataReader, IDataReader
-        where TDbParameter : System.Data.Common.DbParameter, IDbDataParameter
         where TDbTransaction : DbTransaction, IDbTransaction
     {
         /// <inheritdoc />
@@ -22,7 +20,7 @@ namespace ByteTerrace.Ouroboros.Database
         public DbConnection Connection { get; init; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="AbstractDatabase{TDbCommand, TDbDataReader, TDbParameter, TDbTransaction}"/> class.
+        /// Initializes a new instance of the <see cref="AbstractDatabase{TDbCommand, TDbDataReader, TDbTransaction}"/> class.
         /// </summary>
         protected AbstractDatabase(DbProviderFactory providerFactory) {
             CommandBuilder = (providerFactory.CreateCommandBuilder() ?? throw new NullReferenceException(message: "Unable to construct a command builder from the specified provider factory."));
@@ -37,9 +35,9 @@ namespace ByteTerrace.Ouroboros.Database
         }
 
         /// <summary>
-        /// Convert this class to an <see cref="IDatabase{TDbCommand, TDbDataReader, TDbParameter, TDbTransaction}"/> interface.
+        /// Convert this class to an <see cref="IDatabase{TDbCommand, TDbDataReader, TDbTransaction}"/> interface.
         /// </summary>
-        public IDatabase<TDbCommand, TDbDataReader, TDbParameter, TDbTransaction> ToIDatabase() =>
+        public IDatabase<TDbCommand, TDbDataReader, TDbTransaction> ToIDatabase() =>
             this;
     }
 }
