@@ -7,15 +7,9 @@ namespace ByteTerrace.Ouroboros.Database
     /// <summary>
     /// Exposes low-level database operations.
     /// </summary>
-    /// <typeparam name="TDbCommand">The type of database command objects.</typeparam>
-    /// <typeparam name="TDbDataReader">The type of database reader objects.</typeparam>
-    /// <typeparam name="TDbTransaction">The type of database transaction objects.</typeparam>
-    public interface IDatabase<TDbCommand, TDbDataReader, TDbTransaction> : IDisposable
-        where TDbCommand : System.Data.Common.DbCommand, IDbCommand
-        where TDbDataReader : DbDataReader, IDataReader
-        where TDbTransaction : DbTransaction, IDbTransaction
+    public interface IDatabase : IDisposable
     {
-        private static DbResult CreateResult(TDbCommand command, int resultCode) {
+        private static DbResult CreateResult(System.Data.Common.DbCommand command, int resultCode) {
             var outputParameters = new List<DbParameter>();
 
             foreach (IDbDataParameter parameter in command.Parameters) {
@@ -53,40 +47,115 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         DbConnection Connection { get; init; }
 
+        private DbIdentifier CreateIdentifier(
+            string schemaName,
+            string objectName
+        ) =>
+            DbIdentifier.New(
+                commandBuilder: CommandBuilder,
+                objectName: objectName,
+                schemaName: schemaName
+            );
+        private System.Data.Common.DbCommand CreateStoredProcedureCommand(
+            string schemaName,
+            string name,
+            params DbParameter[] parameters
+        ) =>
+            ((System.Data.Common.DbCommand)DbStoredProcedureCall
+                .New(
+                    name: CreateIdentifier(
+                            objectName: name,
+                            schemaName: schemaName
+                        )
+                        .ToString(),
+                    parameters: parameters
+                ).ToIDbCommand(
+                    connection: Connection
+                )
+            );
+        private System.Data.Common.DbCommand CreateSelectWildcardFromCommand(
+            string schemaName,
+            string objectName
+        ) {
+            var selectStatement = CreateSelectWildcardFromStatement(
+                    objectName: objectName,
+                    schemaName: schemaName
+                );
+
+            return ((System.Data.Common.DbCommand)DbCommand
+                .New(
+                    text: selectStatement,
+                    type: CommandType.Text
+                )
+                .ToIDbCommand(connection: Connection)
+            );
+        }
+        private string CreateSelectWildcardFromStatement(
+            string schemaName,
+            string objectName
+        ) =>
+            $"select * from {CreateIdentifier(objectName: objectName, schemaName: schemaName)};";
+
         /// <summary>
         /// Begins a database transaction.
         /// </summary>
         /// <param name="isolationLevel">Specifies the locking behavior to use during the transaction.</param>
-        public TDbTransaction BeginTransaction(IsolationLevel isolationLevel) =>
-            ((TDbTransaction)Connection.BeginTransaction(isolationLevel: isolationLevel));
+        public DbTransaction BeginTransaction(IsolationLevel isolationLevel) =>
+            Connection.BeginTransaction(isolationLevel: isolationLevel);
         /// <summary>
         /// Begins a database transaction asynchronously.
         /// </summary>
-        /// <param name="isolationLevel">Specifies the locking behavior to use during the transaction.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask<TDbTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken) =>
-            ((TDbTransaction)await Connection
+        /// <param name="isolationLevel">Specifies the locking behavior to use during the transaction.</param>
+        public async ValueTask<DbTransaction> BeginTransactionAsync(
+            IsolationLevel isolationLevel,
+            CancellationToken cancellationToken = default
+        ) =>
+            await Connection
                 .BeginTransactionAsync(
                     cancellationToken: cancellationToken,
                     isolationLevel: isolationLevel
                 )
-                .ConfigureAwait(continueOnCapturedContext: false)
-            );
+                .ConfigureAwait(continueOnCapturedContext: false);
         /// <summary>
-        /// Creates a new database reader.
+        /// Executes a database command and returns a data reader.
         /// </summary>
         /// <param name="behavior">Specifies how the data reader will behave.</param>
         /// <param name="command">The database command that will be executed.</param>
-        public TDbDataReader CreateDataReader(TDbCommand command, CommandBehavior behavior) {
+        public DbDataReader ExecuteReader(
+            System.Data.Common.DbCommand command,
+            CommandBehavior behavior
+        ) {
             OpenConnection();
 
-            return ((TDbDataReader)command.ExecuteReader(behavior: behavior));
+            return command.ExecuteReader(behavior: behavior);
+        }
+        /// <summary>
+        /// Executes a database command and returns a data reader.
+        /// </summary>
+        /// <param name="behavior">Specifies how the data reader will behave.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="command">The database command that will be executed.</param>
+        public async ValueTask<DbDataReader> ExecuteReaderAsync(
+            System.Data.Common.DbCommand command,
+            CommandBehavior behavior,
+            CancellationToken cancellationToken = default
+        ) {
+            await OpenConnectionAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+
+            return await command
+                .ExecuteReaderAsync(
+                    behavior: behavior,
+                    cancellationToken: cancellationToken
+                )
+                .ConfigureAwait(continueOnCapturedContext: false);
         }
         /// <summary>
         /// Enumerates each result set in the specified data reader.
         /// </summary>
         /// <param name="dataReader">The data reader that will be enumerated.</param>
-        public IEnumerable<DbResultSet> EnumerateResultSets(TDbDataReader dataReader) {
+        public IEnumerable<DbResultSet> EnumerateResultSets(DbDataReader dataReader) {
             do {
                 yield return DbResultSet.New(dataReader: dataReader);
             } while (dataReader.NextResult());
@@ -94,9 +163,12 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Enumerates each result set in the specified data reader asynchronously.
         /// </summary>
-        /// <param name="dataReader">The data reader that will be enumerated.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async IAsyncEnumerable<DbResultSet> EnumerateResultSetsAsync(TDbDataReader dataReader, [EnumeratorCancellation] CancellationToken cancellationToken) {
+        /// <param name="dataReader">The data reader that will be enumerated.</param>
+        public async IAsyncEnumerable<DbResultSet> EnumerateResultSetsAsync(
+            DbDataReader dataReader,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        ) {
             do {
                 yield return DbResultSet.New(dataReader: dataReader);
             } while (await dataReader
@@ -109,24 +181,20 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         /// <param name="name">The name of the table or view.</param>
         /// <param name="schemaName">The name of the schema.</param>
-        public IEnumerable<DbRow> EnumerateTableOrView(string schemaName, string name) {
-            name = CommandBuilder.UnquoteIdentifier(quotedIdentifier: name);
-            name = CommandBuilder.QuoteIdentifier(unquotedIdentifier: name);
-            schemaName = CommandBuilder.UnquoteIdentifier(quotedIdentifier: schemaName);
-            schemaName = CommandBuilder.QuoteIdentifier(unquotedIdentifier: schemaName);
-
-            using var command = ((TDbCommand)DbCommand
-                .New(
-                    text: $"select * from {schemaName}.{name};",
-                    type: CommandType.Text
-                )
-                .ToIDbCommand(connection: Connection)
-            );
-            using var dataReader = CreateDataReader(
-                command: command,
-                behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult)
-            );
-            using var enumerator = EnumerateResultSets(dataReader: dataReader).GetEnumerator();
+        public IEnumerable<DbRow> EnumerateTableOrView(
+            string schemaName,
+            string name
+        ) {
+            using var command = CreateSelectWildcardFromCommand(
+                    objectName: name,
+                    schemaName: schemaName
+                );
+            using var dataReader = ExecuteReader(
+                    command: command,
+                    behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult)
+                );
+            using var enumerator = EnumerateResultSets(dataReader: dataReader)
+                .GetEnumerator();
 
             if (enumerator.MoveNext()) {
                 foreach (var row in enumerator.Current) {
@@ -135,44 +203,45 @@ namespace ByteTerrace.Ouroboros.Database
             }
         }
         /// <summary>
-        /// Creates a new database reader from the specified table-valued function and then enumerates each row.
+        /// Creates a new database reader from the specified table or view name and then enumerates each row asynchronously.
         /// </summary>
-        /// <param name="name">The name of the table-valued function.</param>
-        /// <param name="parameters">The parameters that will be supplied to the table-valued function.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="name">The name of the table or view.</param>
         /// <param name="schemaName">The name of the schema.</param>
-        public IEnumerable<DbRow> EnumerateTableValuedFunction(string schemaName, string name, params DbParameter[] parameters) {
-            name = CommandBuilder.UnquoteIdentifier(quotedIdentifier: name);
-            name = CommandBuilder.QuoteIdentifier(unquotedIdentifier: name);
-            schemaName = CommandBuilder.UnquoteIdentifier(quotedIdentifier: schemaName);
-            schemaName = CommandBuilder.QuoteIdentifier(unquotedIdentifier: schemaName);
-
-            using var command = ((TDbCommand)DbCommand
-                .New(
-                    parameters: parameters,
-                    text: $"select * from {schemaName}.{name}({string.Join(", ", parameters.Select(p => p.Name))});", // TODO: Determine if the string.Join operation makes this function susceptible to SQL injection attacks.
-                    type: CommandType.Text
+        public async IAsyncEnumerable<DbRow> EnumerateTableOrViewAsync(
+            string schemaName,
+            string name,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        ) {
+            using var command = CreateSelectWildcardFromCommand(
+                    objectName: name,
+                    schemaName: schemaName
+                );
+            using var dataReader = await ExecuteReaderAsync(
+                    cancellationToken: cancellationToken,
+                    command: command,
+                    behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult)
+                );
+            await using var enumerator = EnumerateResultSetsAsync(
+                    cancellationToken: cancellationToken,
+                    dataReader: dataReader
                 )
-                .ToIDbCommand(
-                    connection: Connection
-                )
-            );
-            using var dataReader = CreateDataReader(
-                command: command,
-                behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult)
-            );
-            using var enumerator = EnumerateResultSets(dataReader: dataReader).GetEnumerator();
+                .GetAsyncEnumerator(cancellationToken: cancellationToken);
 
-            if (enumerator.MoveNext()) {
+            if (await enumerator
+                .MoveNextAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false)
+            ) {
                 foreach (var row in enumerator.Current) {
                     yield return row;
                 }
             }
         }
         /// <summary>
-        /// Executes a database command.
+        /// Executes a database command and returns a result.
         /// </summary>
         /// <param name="command">The database command that will be executed.</param>
-        public DbResult Execute(TDbCommand command) {
+        public DbResult Execute(System.Data.Common.DbCommand command) {
             OpenConnection();
 
             return CreateResult(
@@ -185,7 +254,10 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <param name="command">The database command that will be executed.</param>
-        public async ValueTask<DbResult> ExecuteAsync(TDbCommand command, CancellationToken cancellationToken) {
+        public async ValueTask<DbResult> ExecuteAsync(
+            System.Data.Common.DbCommand command,
+            CancellationToken cancellationToken = default
+        ) {
             await OpenConnectionAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
 
@@ -197,27 +269,48 @@ namespace ByteTerrace.Ouroboros.Database
             );
         }
         /// <summary>
-        /// Executes a stored procedure and returns the number of rows affected.
+        /// Executes a stored procedure and returns a result.
         /// </summary>
         /// <param name="name">The name of the stored procedure.</param>
         /// <param name="parameters">The parameters that will be supplied to the stored procedure.</param>
         /// <param name="schemaName">The name of the schema.</param>
-        public DbResult ExecuteStoredProcedure(string schemaName, string name, params DbParameter[] parameters) {
-            schemaName = CommandBuilder.UnquoteIdentifier(quotedIdentifier: schemaName);
-            schemaName = CommandBuilder.QuoteIdentifier(unquotedIdentifier: schemaName);
-            name = CommandBuilder.UnquoteIdentifier(quotedIdentifier: name);
-            name = CommandBuilder.QuoteIdentifier(unquotedIdentifier: name);
-
-            using var command = ((TDbCommand)DbStoredProcedureCall
-                .New(
-                    name: $"{schemaName}.{name}",
-                    parameters: parameters
-                ).ToIDbCommand(
-                    connection: Connection
-                )
+        public DbResult ExecuteStoredProcedure(
+            string schemaName,
+            string name,
+            params DbParameter[] parameters
+        ) {
+            using var command = CreateStoredProcedureCommand(
+                name: name,
+                parameters: parameters,
+                schemaName: schemaName
             );
 
             return Execute(command: command);
+        }
+        /// <summary>
+        /// Executes a stored procedure and returns a result asynchronously.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="name">The name of the stored procedure.</param>
+        /// <param name="parameters">The parameters that will be supplied to the stored procedure.</param>
+        /// <param name="schemaName">The name of the schema.</param>
+        public async ValueTask<DbResult> ExecuteStoredProcedureAsync(
+            string schemaName,
+            string name,
+            DbParameter[] parameters,
+            CancellationToken cancellationToken = default
+        ) {
+            using var command = CreateStoredProcedureCommand(
+                name: name,
+                parameters: parameters,
+                schemaName: schemaName
+            );
+
+            return await ExecuteAsync(
+                    cancellationToken: cancellationToken,
+                    command: command
+                )
+                .ConfigureAwait(continueOnCapturedContext: false);
         }
         /// <summary>
         /// Attempts to open the underlying connection.
@@ -233,7 +326,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// Attempts to open the underlying connection asynchronously.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask OpenConnectionAsync(CancellationToken cancellationToken) {
+        public async ValueTask OpenConnectionAsync(CancellationToken cancellationToken = default) {
             var connectionState = Connection.State;
 
             if ((connectionState == ConnectionState.Closed) || (connectionState == ConnectionState.Broken)) {

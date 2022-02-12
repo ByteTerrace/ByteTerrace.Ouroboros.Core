@@ -4,16 +4,16 @@ using System.Data.Common;
 namespace ByteTerrace.Ouroboros.Database.SqlClient
 {
     /// <summary>
-    /// Provides an implementation of the <see cref="AbstractDatabase{TDbCommand, TDbDataReader, TDbTransaction}" /> class for Microsoft SQL Server.
+    /// Provides an implementation of the <see cref="AbstractDatabase" /> class for Microsoft SQL Server.
     /// </summary>
-    public sealed class SqlClientDatabase : AbstractDatabase<SqlCommand, SqlDataReader, SqlTransaction>
+    public sealed class SqlClientDatabase : AbstractDatabase
     {
         private const string ProviderInvariantName = "Microsoft.Data.SqlClient";
 
         private static SqlClientFactory? ProviderFactory { get; }
 
         static SqlClientDatabase() {
-            if (!IDatabase<SqlCommand, SqlDataReader, SqlTransaction>.TryGetProviderFactory(
+            if (!IDatabase.TryGetProviderFactory(
                 factory: out _,
                 providerInvariantName: ProviderInvariantName
             )) {
@@ -23,7 +23,7 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
                 );
             }
 
-            if (IDatabase<SqlCommand, SqlDataReader, SqlTransaction>.TryGetProviderFactory(
+            if (IDatabase.TryGetProviderFactory(
                 factory: out var clientFactory,
                 providerInvariantName: ProviderInvariantName
             )) {
@@ -87,7 +87,10 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
         /// </summary>
         /// <param name="bulkCopySettings">The settings that will be used during the bulk copy operation.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask ExecuteBulkCopyAsync(SqlBulkCopySettings bulkCopySettings, CancellationToken cancellationToken = default) {
+        public async ValueTask ExecuteBulkCopyAsync(
+            SqlBulkCopySettings bulkCopySettings,
+            CancellationToken cancellationToken = default
+        ) {
             using var bulkCopy = InitializeBulkCopy(bulkCopySettings: bulkCopySettings);
 
             await ToIDatabase()
