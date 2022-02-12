@@ -37,10 +37,27 @@ namespace ByteTerrace.Ouroboros.Database
             Connection.ConnectionString = connectionString;
         }
 
+        /// <summary>
+        /// Releases all resources used by this <see cref="GenericDatabase"/> instance.
+        /// </summary>
+        protected async virtual ValueTask DisposeAsyncCore() {
+            CommandBuilder.Dispose();
+            await Connection
+                .DisposeAsync()
+                .ConfigureAwait(continueOnCapturedContext: false);
+            await DisposeAsyncCore();
+        }
+
         /// <inheritdoc />
         public void Dispose() {
             CommandBuilder.Dispose();
             Connection.Dispose();
+            GC.SuppressFinalize(this);
+        }
+        /// <inheritdoc />
+        public async ValueTask DisposeAsync() {
+            await DisposeAsyncCore()
+                .ConfigureAwait(continueOnCapturedContext: false);
             GC.SuppressFinalize(this);
         }
 

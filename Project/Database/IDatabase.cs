@@ -7,7 +7,7 @@ namespace ByteTerrace.Ouroboros.Database
     /// <summary>
     /// Exposes low-level database operations.
     /// </summary>
-    public interface IDatabase : IDisposable
+    public interface IDatabase : IAsyncDisposable, IDisposable
     {
         private static DbResult CreateResult(System.Data.Common.DbCommand command, int resultCode) {
             var outputParameters = new List<DbParameter>();
