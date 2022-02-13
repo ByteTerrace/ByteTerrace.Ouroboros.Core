@@ -8,8 +8,18 @@ namespace ByteTerrace.Ouroboros.Database
     static partial class DatabaseLogging
     {
         [LoggerMessage(
+            EventId = 1,
+            Message = "Beginning transaction.\n{{\n    \"isolationLevel\": \"{isolationLevel}\"\n}}"
+        )]
+        public static partial void BeginTransaction(ILogger logger, LogLevel logLevel, IsolationLevel isolationLevel);
+        [LoggerMessage(
+            EventId = 2,
+            Message = "Executing command.\n{{\n    \"text\": \"{text}\",\n    \"timeout\": {timeout},\n    \"type\": \"{type}\"\n}}"
+        )]
+        public static partial void Execute(ILogger logger, LogLevel logLevel, string text, int timeout, CommandType type);
+        [LoggerMessage(
             EventId = 0,
-            Message = "Opening connection. \n{{\n    \"ConnectionString\": \"{connectionString}\"\n}}"
+            Message = "Opening connection.\n{{\n    \"connectionString\": \"{connectionString}\"\n}}"
         )]
         public static partial void OpenConnection(ILogger logger, LogLevel logLevel, string connectionString);
     }
@@ -24,7 +34,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         protected const LogLevel DefaultLogLevel = LogLevel.Trace;
 
-        private static DbResult CreateResult(System.Data.Common.DbCommand command, int resultCode) {
+        private static DbResult CreateResult(IDbCommand command, int resultCode) {
             var outputParameters = new List<DbParameter>();
 
             foreach (IDbDataParameter parameter in command.Parameters) {
@@ -71,24 +81,7 @@ namespace ByteTerrace.Ouroboros.Database
                 objectName: objectName,
                 schemaName: schemaName
             );
-        private System.Data.Common.DbCommand CreateStoredProcedureCommand(
-            string schemaName,
-            string name,
-            params DbParameter[] parameters
-        ) =>
-            ((System.Data.Common.DbCommand)DbStoredProcedureCall
-                .New(
-                    name: CreateIdentifier(
-                            objectName: name,
-                            schemaName: schemaName
-                        )
-                        .ToString(),
-                    parameters: parameters
-                ).ToIDbCommand(
-                    connection: Connection
-                )
-            );
-        private System.Data.Common.DbCommand CreateSelectWildcardFromCommand(
+        private DbCommand CreateSelectWildcardFromCommand(
             string schemaName,
             string objectName
         ) {
@@ -96,15 +89,44 @@ namespace ByteTerrace.Ouroboros.Database
                 objectName: objectName,
                 schemaName: schemaName
             );
-            var selectStatement = $"select * from {tableIdentifier};";
 
-            return ((System.Data.Common.DbCommand)DbCommand
-                .New(
-                    text: selectStatement,
-                    type: CommandType.Text
-                )
-                .ToIDbCommand(connection: Connection)
+            return DbCommand.New(
+                text: $"select * from {tableIdentifier};",
+                type: CommandType.Text
             );
+        }
+        private DbStoredProcedureCall CreateStoredProcedureCall(
+            string schemaName,
+            string name,
+            params DbParameter[] parameters
+        ) =>
+            DbStoredProcedureCall.New(
+                name: CreateIdentifier(
+                        objectName: name,
+                        schemaName: schemaName
+                    )
+                    .ToString(),
+                parameters: parameters
+            );
+        private void LogBeginTransaction(IsolationLevel isolationLevel) {
+            if (Logger.IsEnabled(DefaultLogLevel)) {
+                DatabaseLogging.BeginTransaction(
+                    isolationLevel: isolationLevel,
+                    logger: Logger,
+                    logLevel: DefaultLogLevel
+                );
+            }
+        }
+        private void LogExecute(DbCommand command) {
+            if (Logger.IsEnabled(DefaultLogLevel)) {
+                DatabaseLogging.Execute(
+                    logger: Logger,
+                    logLevel: DefaultLogLevel,
+                    text: command.Text,
+                    timeout: command.Timeout,
+                    type: command.Type
+                );
+            }
         }
         private void LogOpenConnection() {
             if (Logger.IsEnabled(DefaultLogLevel)) {
@@ -128,8 +150,12 @@ namespace ByteTerrace.Ouroboros.Database
         /// Begins a database transaction.
         /// </summary>
         /// <param name="isolationLevel">Specifies the locking behavior to use during the transaction.</param>
-        public DbTransaction BeginTransaction(IsolationLevel isolationLevel) =>
-            Connection.BeginTransaction(isolationLevel: isolationLevel);
+        public DbTransaction BeginTransaction(IsolationLevel isolationLevel) {
+            OpenConnection();
+            LogBeginTransaction(isolationLevel: isolationLevel);
+
+            return Connection.BeginTransaction(isolationLevel: isolationLevel);
+        }
         /// <summary>
         /// Begins a database transaction asynchronously.
         /// </summary>
@@ -138,44 +164,15 @@ namespace ByteTerrace.Ouroboros.Database
         public async ValueTask<DbTransaction> BeginTransactionAsync(
             IsolationLevel isolationLevel,
             CancellationToken cancellationToken = default
-        ) =>
-            await Connection
-                .BeginTransactionAsync(
-                    cancellationToken: cancellationToken,
-                    isolationLevel: isolationLevel
-                )
-                .ConfigureAwait(continueOnCapturedContext: false);
-        /// <summary>
-        /// Executes a database command and returns a data reader.
-        /// </summary>
-        /// <param name="behavior">Specifies how the data reader will behave.</param>
-        /// <param name="command">The database command that will be executed.</param>
-        public DbDataReader ExecuteReader(
-            System.Data.Common.DbCommand command,
-            CommandBehavior behavior
-        ) {
-            OpenConnection();
-
-            return command.ExecuteReader(behavior: behavior);
-        }
-        /// <summary>
-        /// Executes a database command and returns a data reader.
-        /// </summary>
-        /// <param name="behavior">Specifies how the data reader will behave.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <param name="command">The database command that will be executed.</param>
-        public async ValueTask<DbDataReader> ExecuteReaderAsync(
-            System.Data.Common.DbCommand command,
-            CommandBehavior behavior,
-            CancellationToken cancellationToken = default
         ) {
             await OpenConnectionAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
+            LogBeginTransaction(isolationLevel: isolationLevel);
 
-            return await command
-                .ExecuteReaderAsync(
-                    behavior: behavior,
-                    cancellationToken: cancellationToken
+            return await Connection
+                .BeginTransactionAsync(
+                    cancellationToken: cancellationToken,
+                    isolationLevel: isolationLevel
                 )
                 .ConfigureAwait(continueOnCapturedContext: false);
         }
@@ -213,13 +210,12 @@ namespace ByteTerrace.Ouroboros.Database
             string schemaName,
             string name
         ) {
-            using var command = CreateSelectWildcardFromCommand(
-                    objectName: name,
-                    schemaName: schemaName
-                );
             using var dataReader = ExecuteReader(
-                    command: command,
-                    behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult)
+                    behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult),
+                    command: CreateSelectWildcardFromCommand(
+                        objectName: name,
+                        schemaName: schemaName
+                    )
                 );
             using var enumerator = EnumerateResultSets(dataReader: dataReader)
                 .GetEnumerator();
@@ -241,14 +237,13 @@ namespace ByteTerrace.Ouroboros.Database
             string name,
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         ) {
-            using var command = CreateSelectWildcardFromCommand(
-                    objectName: name,
-                    schemaName: schemaName
-                );
             using var dataReader = await ExecuteReaderAsync(
+                    behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult),
                     cancellationToken: cancellationToken,
-                    command: command,
-                    behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult)
+                    command: CreateSelectWildcardFromCommand(
+                        objectName: name,
+                        schemaName: schemaName
+                    )
                 );
             await using var enumerator = EnumerateResultSetsAsync(
                     cancellationToken: cancellationToken,
@@ -269,12 +264,15 @@ namespace ByteTerrace.Ouroboros.Database
         /// Executes a database command and returns a result.
         /// </summary>
         /// <param name="command">The database command that will be executed.</param>
-        public DbResult Execute(System.Data.Common.DbCommand command) {
+        public DbResult Execute(DbCommand command) {
             OpenConnection();
+            LogExecute(command: command);
+
+            using var iDbCommand = command.ToDbCommand(connection: Connection);
 
             return CreateResult(
-                command: command,
-                resultCode: command.ExecuteNonQuery()
+                command: iDbCommand,
+                resultCode: iDbCommand.ExecuteNonQuery()
             );
         }
         /// <summary>
@@ -283,18 +281,61 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <param name="command">The database command that will be executed.</param>
         public async ValueTask<DbResult> ExecuteAsync(
-            System.Data.Common.DbCommand command,
+            DbCommand command,
             CancellationToken cancellationToken = default
         ) {
             await OpenConnectionAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
+            LogExecute(command: command);
+
+            using var dbCommand = command.ToDbCommand(connection: Connection);
 
             return CreateResult(
-                command: command,
-                resultCode: await command
+                command: dbCommand,
+                resultCode: await dbCommand
                     .ExecuteNonQueryAsync(cancellationToken: cancellationToken)
                     .ConfigureAwait(continueOnCapturedContext: false)
             );
+        }
+        /// <summary>
+        /// Executes a database command and returns a data reader.
+        /// </summary>
+        /// <param name="behavior">Specifies how the data reader will behave.</param>
+        /// <param name="command">The database command that will be executed.</param>
+        public DbDataReader ExecuteReader(
+            DbCommand command,
+            CommandBehavior behavior
+        ) {
+            OpenConnection();
+            LogExecute(command: command);
+
+            using var dbCommand = command.ToDbCommand(connection: Connection);
+
+            return dbCommand.ExecuteReader(behavior: behavior);
+        }
+        /// <summary>
+        /// Executes a database command and returns a data reader.
+        /// </summary>
+        /// <param name="behavior">Specifies how the data reader will behave.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="command">The database command that will be executed.</param>
+        public async ValueTask<DbDataReader> ExecuteReaderAsync(
+            DbCommand command,
+            CommandBehavior behavior,
+            CancellationToken cancellationToken = default
+        ) {
+            await OpenConnectionAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(continueOnCapturedContext: false);
+            LogExecute(command: command);
+
+            using var dbCommand = command.ToDbCommand(connection: Connection);
+
+            return await dbCommand
+                .ExecuteReaderAsync(
+                    behavior: behavior,
+                    cancellationToken: cancellationToken
+                )
+                .ConfigureAwait(continueOnCapturedContext: false);
         }
         /// <summary>
         /// Executes a stored procedure and returns a result.
@@ -306,15 +347,14 @@ namespace ByteTerrace.Ouroboros.Database
             string schemaName,
             string name,
             params DbParameter[] parameters
-        ) {
-            using var command = CreateStoredProcedureCommand(
-                name: name,
-                parameters: parameters,
-                schemaName: schemaName
+        ) =>
+            Execute(
+                command: CreateStoredProcedureCall(
+                    name: name,
+                    parameters: parameters,
+                    schemaName: schemaName
+                )
             );
-
-            return Execute(command: command);
-        }
         /// <summary>
         /// Executes a stored procedure and returns a result asynchronously.
         /// </summary>
@@ -327,19 +367,16 @@ namespace ByteTerrace.Ouroboros.Database
             string name,
             DbParameter[] parameters,
             CancellationToken cancellationToken = default
-        ) {
-            using var command = CreateStoredProcedureCommand(
-                name: name,
-                parameters: parameters,
-                schemaName: schemaName
-            );
-
-            return await ExecuteAsync(
-                    cancellationToken: cancellationToken,
-                    command: command
+        ) =>
+            await ExecuteAsync(
+                cancellationToken: cancellationToken,
+                command: CreateStoredProcedureCall(
+                    name: name,
+                    parameters: parameters,
+                    schemaName: schemaName
                 )
-                .ConfigureAwait(continueOnCapturedContext: false);
-        }
+            )
+            .ConfigureAwait(continueOnCapturedContext: false);
         /// <summary>
         /// Attempts to open the underlying connection.
         /// </summary>

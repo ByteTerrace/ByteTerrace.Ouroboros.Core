@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
 {
@@ -7,11 +8,22 @@ namespace ByteTerrace.Ouroboros.Database
     /// </summary>
     /// <param name="Name">The name of the stored procedure.</param>
     /// <param name="Parameters">The parameters that will be supplied to the stored procedure.</param>
+    /// <param name="Timeout">The amount of time (in seconds) to wait for the command to complete execution.</param>
+    /// <param name="Transaction">The transaction object that the command will be associated with.</param>
     public readonly record struct DbStoredProcedureCall(
         string Name,
-        params DbParameter[]? Parameters
+        DbParameter[]? Parameters,
+        int Timeout,
+        DbTransaction? Transaction
     )
     {
+        /// <summary>
+        /// Implicitly converts a <see cref="DbStoredProcedureCall"/> to a <see cref="DbCommand"/>.
+        /// </summary>
+        /// <param name="storedProcedureCall">The stored procedure call that will be converted.</param>
+        public static implicit operator DbCommand(DbStoredProcedureCall storedProcedureCall) =>
+           storedProcedureCall.ToDbCommand();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DbStoredProcedureCall"/> struct.
         /// </summary>
@@ -23,24 +35,21 @@ namespace ByteTerrace.Ouroboros.Database
         ) =>
             new(
                 Name: name,
-                Parameters: parameters
+                Parameters: parameters,
+                Timeout: 17,
+                Transaction: default
             );
 
         /// <summary>
         /// Convert this struct to an <see cref="IDbCommand"/>.
         /// </summary>
-        /// <param name="connection">The connection that the command will be derived from.</param>
-        /// <param name="timeout">The amount of time (in seconds) to wait for the command to complete execution.</param>
-        /// <param name="transaction">The transaction object that the command will be associated with.</param>
-        public IDbCommand ToIDbCommand(IDbConnection connection, int timeout = 17, IDbTransaction? transaction = default) =>
-            DbCommand
-                .New(
-                    parameters: Parameters,
-                    text: Name,
-                    timeout: timeout,
-                    transaction: transaction,
-                    type: CommandType.StoredProcedure
-                )
-                .ToIDbCommand(connection: connection);
+        public DbCommand ToDbCommand() =>
+            DbCommand.New(
+                parameters: Parameters,
+                text: Name,
+                timeout: Timeout,
+                transaction: Transaction,
+                type: CommandType.StoredProcedure
+            );
     }
 }

@@ -7,12 +7,12 @@ namespace ByteTerrace.Ouroboros.Http
     {
         [LoggerMessage(
             EventId = 1,
-            Message = "Invoking HttpResponseMessage callback. \n{{\n    \"ContentLength\": {contentLength},\n    \"ContentType\": \"{contentType}\",\n    \"StatusCode\": {statusCode},\n    \"Version\": \"{version}\"\n}}"
+            Message = "Invoking HttpResponseMessage callback.\n{{\n    \"contentLength\": {contentLength},\n    \"contentType\": \"{contentType}\",\n    \"statusCode\": {statusCode},\n    \"version\": \"{version}\"\n}}"
         )]
         public static partial void InvokeHttpResponseCallback(long? contentLength, MediaTypeHeaderValue? contentType, ILogger logger, LogLevel logLevel, int statusCode, Version version);
         [LoggerMessage(
             EventId = 0,
-            Message = "Sending HttpRequestMessage. \n{{\n    \"Method\": \"{method}\",\n    \"Uri\": \"{uri}\",\n    \"Version\": \"{version}\"\n}}"
+            Message = "Sending HttpRequestMessage.\n{{\n    \"method\": \"{method}\",\n    \"uri\": \"{uri}\",\n    \"version\": \"{version}\"\n}}"
         )]
         public static partial void SendHttpRequestMessage(ILogger logger, LogLevel logLevel, HttpMethod method, string uri, Version version);
     }

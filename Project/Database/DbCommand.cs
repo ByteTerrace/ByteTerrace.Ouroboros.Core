@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
 {
@@ -14,7 +15,7 @@ namespace ByteTerrace.Ouroboros.Database
         DbParameter[]? Parameters,
         string Text,
         int Timeout,
-        IDbTransaction? Transaction,
+        DbTransaction? Transaction,
         CommandType Type
     )
     {
@@ -31,7 +32,7 @@ namespace ByteTerrace.Ouroboros.Database
             DbParameter[]? parameters = default,
             int? timeout = default,
             CommandType? type = default,
-            IDbTransaction? transaction = default
+            DbTransaction? transaction = default
         ) =>
             new(
                 Parameters: parameters,
@@ -45,7 +46,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// Convert this struct to an <see cref="IDbCommand"/>.
         /// </summary>
         /// <param name="connection">The connection that the command will be derived from.</param>
-        public IDbCommand ToIDbCommand(IDbConnection connection) {
+        public System.Data.Common.DbCommand ToDbCommand(DbConnection connection) {
             var command = connection.CreateCommand();
 
             command.CommandText = Text;

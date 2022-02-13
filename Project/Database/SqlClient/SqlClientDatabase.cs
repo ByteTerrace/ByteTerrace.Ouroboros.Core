@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database.SqlClient
@@ -38,6 +39,17 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
             new(
                 connectionString: connectionString,
                 logger: logger
+            );
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SqlClientDatabase"/> class.
+        /// </summary>
+        /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
+        public static SqlClientDatabase New(
+            string connectionString
+        ) =>
+            New(
+                connectionString: connectionString,
+                logger: NullLogger<SqlClientDatabase>.Instance
             );
 
         private SqlClientDatabase(
