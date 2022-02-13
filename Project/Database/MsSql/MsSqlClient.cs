@@ -1,21 +1,21 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using System.Data.Common;
 
-namespace ByteTerrace.Ouroboros.Database.SqlClient
+namespace ByteTerrace.Ouroboros.Database.MsSql
 {
     /// <summary>
-    /// Provides an implementation of the <see cref="GenericDatabase" /> class for Microsoft SQL Server.
+    /// Provides an implementation of the <see cref="DbClient" /> class for Microsoft SQL Server.
     /// </summary>
-    public sealed class SqlClientDatabase : GenericDatabase
+    public sealed class MsSqlClient : DbClient
     {
         /// <summary>
-        /// The invariant name of the provider that will be used when constructing instances of the <see cref="SqlClientDatabase"/> class.
+        /// The invariant name of the provider that will be used when constructing instances of the <see cref="MsSqlClient"/> class.
         /// </summary>
         public const string ProviderInvariantName = "Microsoft.Data.SqlClient";
 
-        static SqlClientDatabase() {
+        static MsSqlClient() {
             if (!DbProviderFactories.TryGetFactory(
                 factory: out _,
                 providerInvariantName: ProviderInvariantName
@@ -28,44 +28,49 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SqlClientDatabase"/> class.
+        /// Initializes a new instance of the <see cref="MsSqlClient"/> class.
         /// </summary>
-        /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
         /// <param name="logger">The logger that will be associated with the database.</param>
-        public static SqlClientDatabase New(
-            string connectionString,
-            ILogger<SqlClientDatabase> logger
+        /// <param name="name">The name that will be associated with the database.</param>
+        /// <param name="options">The options that will be used to configure the database.</param>
+        public static MsSqlClient New(
+            string name,
+            ILogger<MsSqlClient> logger,
+            IOptionsMonitor<MsSqlClientOptions> options
         ) =>
             new(
-                connectionString: connectionString,
-                logger: logger
+                logger: logger,
+                name: name,
+                options: options
             );
         /// <summary>
-        /// Initializes a new instance of the <see cref="SqlClientDatabase"/> class.
+        /// Initializes a new instance of the <see cref="MsSqlClient"/> class.
         /// </summary>
         /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
-        public static SqlClientDatabase New(
+        public static MsSqlClient New(
             string connectionString
         ) =>
-            New(
-                connectionString: connectionString,
-                logger: NullLogger<SqlClientDatabase>.Instance
-            );
+            new(connectionString: connectionString);
 
-        private SqlClientDatabase(
-            string connectionString,
-            ILogger<SqlClientDatabase> logger
+        private MsSqlClient(
+            string name,
+            ILogger<MsSqlClient> logger,
+            IOptionsMonitor<MsSqlClientOptions> options
         ) : base(
-            connectionString: connectionString,
             logger: logger,
+            name: name,
+            options: options
+        ) { }
+        private MsSqlClient(string connectionString) : base(
+            connectionString: connectionString,
             providerInvariantName: ProviderInvariantName
         ) { }
 
-        private SqlBulkCopy InitializeBulkCopy(SqlBulkCopySettings bulkCopySettings) {
+        private SqlBulkCopy InitializeBulkCopy(MsSqlClientBulkCopySettings bulkCopySettings) {
             var sqlBulkCopy = new SqlBulkCopy(((SqlConnection)Connection), bulkCopySettings.Options, bulkCopySettings.Transaction) {
                 BatchSize = bulkCopySettings.BatchSize,
                 BulkCopyTimeout = bulkCopySettings.Timeout,
-                DestinationTableName = DbIdentifier.New(
+                DestinationTableName = DbFullyQualifiedIdentifier.New(
                         commandBuilder: CommandBuilder,
                         objectName: bulkCopySettings.TargetTableName,
                         schemaName: bulkCopySettings.TargetSchemaName
@@ -85,10 +90,10 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
         /// Copies all rows in the supplied data reader to the specified target.
         /// </summary>
         /// <param name="bulkCopySettings">The settings that will be used during the bulk copy operation.</param>
-        public void ExecuteBulkCopy(SqlBulkCopySettings bulkCopySettings) {
+        public void ExecuteBulkCopy(MsSqlClientBulkCopySettings bulkCopySettings) {
             using var bulkCopy = InitializeBulkCopy(bulkCopySettings: bulkCopySettings);
 
-            ToIDatabase().OpenConnection();
+            ToIDbClient().OpenConnection();
             bulkCopy.WriteToServer(reader: bulkCopySettings.SourceDataReader);
         }
         /// <summary>
@@ -97,12 +102,12 @@ namespace ByteTerrace.Ouroboros.Database.SqlClient
         /// <param name="bulkCopySettings">The settings that will be used during the bulk copy operation.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         public async ValueTask ExecuteBulkCopyAsync(
-            SqlBulkCopySettings bulkCopySettings,
+            MsSqlClientBulkCopySettings bulkCopySettings,
             CancellationToken cancellationToken = default
         ) {
             using var bulkCopy = InitializeBulkCopy(bulkCopySettings: bulkCopySettings);
 
-            await ToIDatabase()
+            await ToIDbClient()
                 .OpenConnectionAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false);
             await bulkCopy

@@ -2,26 +2,26 @@
 
 namespace ByteTerrace.Ouroboros.Database
 {
-    internal readonly record struct DbIdentifier(
-        QuotedIdentifier DatabaseName,
-        QuotedIdentifier ObjectName,
-        QuotedIdentifier SchemaName,
-        QuotedIdentifier ServerName
+    internal readonly record struct DbFullyQualifiedIdentifier(
+        DbQuotedIdentifier DatabaseName,
+        DbQuotedIdentifier ObjectName,
+        DbQuotedIdentifier SchemaName,
+        DbQuotedIdentifier ServerName
     )
     {
-        public static DbIdentifier New(
+        public static DbFullyQualifiedIdentifier New(
             DbCommandBuilder commandBuilder,
             string databaseName,
             string objectName,
             string schemaName,
             string serverName
         ) => new(
-            DatabaseName: (string.IsNullOrEmpty(databaseName) ? default : QuotedIdentifier.New(commandBuilder: commandBuilder, value: databaseName)),
-            ObjectName: (string.IsNullOrEmpty(objectName) ? default : QuotedIdentifier.New(commandBuilder: commandBuilder, value: objectName)),
-            SchemaName: (string.IsNullOrEmpty(schemaName) ? default : QuotedIdentifier.New(commandBuilder: commandBuilder, value: schemaName)),
-            ServerName: (string.IsNullOrEmpty(serverName) ? default : QuotedIdentifier.New(commandBuilder: commandBuilder, value: serverName))
+            DatabaseName: (string.IsNullOrEmpty(databaseName) ? default : DbQuotedIdentifier.New(commandBuilder: commandBuilder, value: databaseName)),
+            ObjectName: (string.IsNullOrEmpty(objectName) ? default : DbQuotedIdentifier.New(commandBuilder: commandBuilder, value: objectName)),
+            SchemaName: (string.IsNullOrEmpty(schemaName) ? default : DbQuotedIdentifier.New(commandBuilder: commandBuilder, value: schemaName)),
+            ServerName: (string.IsNullOrEmpty(serverName) ? default : DbQuotedIdentifier.New(commandBuilder: commandBuilder, value: serverName))
         );
-        public static DbIdentifier New(
+        public static DbFullyQualifiedIdentifier New(
             DbCommandBuilder commandBuilder,
             string databaseName,
             string schemaName,
@@ -33,7 +33,7 @@ namespace ByteTerrace.Ouroboros.Database
             schemaName: schemaName,
             serverName: string.Empty
         );
-        public static DbIdentifier New(
+        public static DbFullyQualifiedIdentifier New(
             DbCommandBuilder commandBuilder,
             string schemaName,
             string objectName

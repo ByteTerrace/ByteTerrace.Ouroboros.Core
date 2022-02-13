@@ -5,29 +5,10 @@ using System.Runtime.CompilerServices;
 
 namespace ByteTerrace.Ouroboros.Database
 {
-    static partial class DatabaseLogging
-    {
-        [LoggerMessage(
-            EventId = 1,
-            Message = "Beginning transaction.\n{{\n    \"isolationLevel\": \"{isolationLevel}\"\n}}"
-        )]
-        public static partial void BeginTransaction(ILogger logger, LogLevel logLevel, IsolationLevel isolationLevel);
-        [LoggerMessage(
-            EventId = 2,
-            Message = "Executing command.\n{{\n    \"text\": \"{text}\",\n    \"timeout\": {timeout},\n    \"type\": \"{type}\"\n}}"
-        )]
-        public static partial void Execute(ILogger logger, LogLevel logLevel, string text, int timeout, CommandType type);
-        [LoggerMessage(
-            EventId = 0,
-            Message = "Opening connection.\n{{\n    \"connectionString\": \"{connectionString}\"\n}}"
-        )]
-        public static partial void OpenConnection(ILogger logger, LogLevel logLevel, string connectionString);
-    }
-
     /// <summary>
     /// Exposes low-level database operations.
     /// </summary>
-    public interface IDatabase : IAsyncDisposable, IDisposable
+    public interface IDbClient : IAsyncDisposable, IDisposable
     {
         /// <summary>
         /// The default level that will be used during log operations.
@@ -72,11 +53,11 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         public DbProviderFactory ProviderFactory { get; init; }
 
-        private DbIdentifier CreateIdentifier(
+        private DbFullyQualifiedIdentifier CreateIdentifier(
             string schemaName,
             string objectName
         ) =>
-            DbIdentifier.New(
+            DbFullyQualifiedIdentifier.New(
                 commandBuilder: CommandBuilder,
                 objectName: objectName,
                 schemaName: schemaName
@@ -110,7 +91,7 @@ namespace ByteTerrace.Ouroboros.Database
             );
         private void LogBeginTransaction(IsolationLevel isolationLevel) {
             if (Logger.IsEnabled(DefaultLogLevel)) {
-                DatabaseLogging.BeginTransaction(
+                DbClientLogging.BeginTransaction(
                     isolationLevel: isolationLevel,
                     logger: Logger,
                     logLevel: DefaultLogLevel
@@ -119,7 +100,7 @@ namespace ByteTerrace.Ouroboros.Database
         }
         private void LogExecute(DbCommand command) {
             if (Logger.IsEnabled(DefaultLogLevel)) {
-                DatabaseLogging.Execute(
+                DbClientLogging.Execute(
                     logger: Logger,
                     logLevel: DefaultLogLevel,
                     text: command.Text,
@@ -138,7 +119,7 @@ namespace ByteTerrace.Ouroboros.Database
                     connectionStringBuilder["User ID"] = default;
                 }
 
-                DatabaseLogging.OpenConnection(
+                DbClientLogging.OpenConnection(
                     connectionString: (connectionStringBuilder?.ConnectionString ?? "(null)"),
                     logger: Logger,
                     logLevel: DefaultLogLevel
@@ -268,11 +249,11 @@ namespace ByteTerrace.Ouroboros.Database
             OpenConnection();
             LogExecute(command: command);
 
-            using var iDbCommand = command.ToDbCommand(connection: Connection);
+            using var dbcommand = command.ToDbCommand(connection: Connection);
 
             return CreateResult(
-                command: iDbCommand,
-                resultCode: iDbCommand.ExecuteNonQuery()
+                command: dbcommand,
+                resultCode: dbcommand.ExecuteNonQuery()
             );
         }
         /// <summary>
