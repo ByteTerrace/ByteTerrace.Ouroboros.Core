@@ -1,14 +1,29 @@
-﻿using System.Data;
+﻿using Microsoft.Extensions.Logging;
+using System.Data;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
 
 namespace ByteTerrace.Ouroboros.Database
 {
+    static partial class DatabaseLogging
+    {
+        [LoggerMessage(
+            EventId = 0,
+            Message = "Opening connection. \n{{\n    \"ConnectionString\": \"{connectionString}\"\n}}"
+        )]
+        public static partial void OpenConnection(ILogger logger, LogLevel logLevel, string connectionString);
+    }
+
     /// <summary>
     /// Exposes low-level database operations.
     /// </summary>
     public interface IDatabase : IAsyncDisposable, IDisposable
     {
+        /// <summary>
+        /// The default level that will be used during log operations.
+        /// </summary>
+        protected const LogLevel DefaultLogLevel = LogLevel.Trace;
+
         private static DbResult CreateResult(System.Data.Common.DbCommand command, int resultCode) {
             var outputParameters = new List<DbParameter>();
 
@@ -38,6 +53,14 @@ namespace ByteTerrace.Ouroboros.Database
         /// Gets the underlying database connection.
         /// </summary>
         DbConnection Connection { get; init; }
+        /// <summary>
+        /// Gets the logger that is associated with this database.
+        /// </summary>
+        public ILogger Logger { get; init; }
+        /// <summary>
+        /// Gets the underlying database provider factory.
+        /// </summary>
+        public DbProviderFactory ProviderFactory { get; init; }
 
         private DbIdentifier CreateIdentifier(
             string schemaName,
@@ -82,6 +105,23 @@ namespace ByteTerrace.Ouroboros.Database
                 )
                 .ToIDbCommand(connection: Connection)
             );
+        }
+        private void LogOpenConnection() {
+            if (Logger.IsEnabled(DefaultLogLevel)) {
+                var connectionStringBuilder = ProviderFactory.CreateConnectionStringBuilder();
+
+                if (connectionStringBuilder is not null) {
+                    connectionStringBuilder.ConnectionString = Connection.ConnectionString;
+                    connectionStringBuilder["Password"] = default;
+                    connectionStringBuilder["User ID"] = default;
+                }
+
+                DatabaseLogging.OpenConnection(
+                    connectionString: (connectionStringBuilder?.ConnectionString ?? "(null)"),
+                    logger: Logger,
+                    logLevel: DefaultLogLevel
+                );
+            }
         }
 
         /// <summary>
@@ -307,6 +347,7 @@ namespace ByteTerrace.Ouroboros.Database
             var connectionState = Connection.State;
 
             if ((connectionState == ConnectionState.Closed) || (connectionState == ConnectionState.Broken)) {
+                LogOpenConnection();
                 Connection.Open();
             }
         }
@@ -318,6 +359,7 @@ namespace ByteTerrace.Ouroboros.Database
             var connectionState = Connection.State;
 
             if ((connectionState == ConnectionState.Closed) || (connectionState == ConnectionState.Broken)) {
+                LogOpenConnection();
                 await Connection
                     .OpenAsync(cancellationToken: cancellationToken)
                     .ConfigureAwait(continueOnCapturedContext: false);

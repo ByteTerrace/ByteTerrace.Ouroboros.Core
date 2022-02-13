@@ -1,4 +1,5 @@
-﻿using System.Data.Common;
+﻿using Microsoft.Extensions.Logging;
+using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
 {
@@ -11,10 +12,12 @@ namespace ByteTerrace.Ouroboros.Database
         /// Initializes a new instance of the <see cref="GenericDatabase"/> class.
         /// </summary>
         /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
+        /// <param name="logger">The logger that will be associated with the database.</param>
         /// <param name="providerInvariantName">The invariant provider name.</param>
-        public static GenericDatabase New(string providerInvariantName, string connectionString) =>
+        public static GenericDatabase New(string providerInvariantName, string connectionString, ILogger logger) =>
             new(
                 connectionString: connectionString,
+                logger: logger,
                 providerInvariantName: providerInvariantName
             );
 
@@ -22,17 +25,24 @@ namespace ByteTerrace.Ouroboros.Database
         public DbCommandBuilder CommandBuilder { get; init; }
         /// <inheritdoc />
         public DbConnection Connection { get; init; }
+        /// <inheritdoc />
+        public ILogger Logger { get; init; }
+        /// <inheritdoc />
+        public DbProviderFactory ProviderFactory { get; init; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GenericDatabase"/> class.
         /// </summary>
         /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
+        /// <param name="logger">The logger that will be associated with the database.</param>
         /// <param name="providerInvariantName">The invariant provider name.</param>
-        protected GenericDatabase(string providerInvariantName, string connectionString) {
+        protected GenericDatabase(string providerInvariantName, string connectionString, ILogger logger) {
             var providerFactory = DbProviderFactories.GetFactory(providerInvariantName: providerInvariantName);
 
             CommandBuilder = (providerFactory.CreateCommandBuilder() ?? throw new NullReferenceException(message: "Unable to construct a command builder from the specified provider factory."));
             Connection = (providerFactory.CreateConnection() ?? throw new NullReferenceException(message: "Unable to construct a connection from the specified provider factory."));
+            Logger = logger;
+            ProviderFactory = providerFactory;
 
             Connection.ConnectionString = connectionString;
         }
@@ -45,7 +55,6 @@ namespace ByteTerrace.Ouroboros.Database
             await Connection
                 .DisposeAsync()
                 .ConfigureAwait(continueOnCapturedContext: false);
-            await DisposeAsyncCore();
         }
 
         /// <inheritdoc />

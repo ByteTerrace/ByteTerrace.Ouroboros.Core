@@ -1,14 +1,40 @@
-﻿namespace ByteTerrace.Ouroboros.Http
+﻿using Microsoft.Extensions.Logging;
+using System.Net.Http.Headers;
+
+namespace ByteTerrace.Ouroboros.Http
 {
+    static partial class HttpClientLogging
+    {
+        [LoggerMessage(
+            EventId = 1,
+            Message = "Invoking HttpResponseMessage callback. \n{{\n    \"ContentLength\": {contentLength},\n    \"ContentType\": \"{contentType}\",\n    \"StatusCode\": {statusCode},\n    \"Version\": \"{version}\"\n}}"
+        )]
+        public static partial void InvokeHttpResponseCallback(long? contentLength, MediaTypeHeaderValue? contentType, ILogger logger, LogLevel logLevel, int statusCode, Version version);
+        [LoggerMessage(
+            EventId = 0,
+            Message = "Sending HttpRequestMessage. \n{{\n    \"Method\": \"{method}\",\n    \"Uri\": \"{uri}\",\n    \"Version\": \"{version}\"\n}}"
+        )]
+        public static partial void SendHttpRequestMessage(ILogger logger, LogLevel logLevel, HttpMethod method, string uri, Version version);
+    }
+
     /// <summary>
     /// Exposes low-level HTTP operations.
     /// </summary>
     public interface IHttpClient : IDisposable
     {
         /// <summary>
+        /// The default level that will be used during log operations.
+        /// </summary>
+        protected const LogLevel DefaultLogLevel = LogLevel.Trace;
+
+        /// <summary>
         /// Gets the underlying HTTP client.
         /// </summary>
         public HttpClient HttpClient { get; init; }
+        /// <summary>
+        /// Gets the logger that is associated with this client.
+        /// </summary>
+        public ILogger Logger { get; init; }
 
         /// <summary>
         /// Sends a GET request asynchronously.
@@ -74,6 +100,16 @@
                 httpRequestMessage.Content = new StreamContent(content: content);
             }
 
+            if (Logger.IsEnabled(DefaultLogLevel)) {
+                HttpClientLogging.SendHttpRequestMessage(
+                    logger: Logger,
+                    logLevel: DefaultLogLevel,
+                    method: operation.Method,
+                    uri: $"{HttpClient.BaseAddress}{operation.Uri}",
+                    version: httpRequestMessage.Version
+                );
+            }
+
             using var httpResponseMessage = await HttpClient
                 .SendAsync(
                     cancellationToken: cancellationToken,
@@ -86,6 +122,17 @@
                 await content
                     .DisposeAsync()
                     .ConfigureAwait(continueOnCapturedContext: false);
+            }
+
+            if (Logger.IsEnabled(DefaultLogLevel)) {
+                HttpClientLogging.InvokeHttpResponseCallback(
+                    contentLength: httpResponseMessage.Content.Headers.ContentLength,
+                    contentType: httpResponseMessage.Content.Headers.ContentType,
+                    logger: Logger,
+                    logLevel: DefaultLogLevel,
+                    statusCode: ((int)httpResponseMessage.StatusCode),
+                    version: httpResponseMessage.Version
+                );
             }
 
             return await operation

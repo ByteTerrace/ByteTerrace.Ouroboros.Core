@@ -15,7 +15,7 @@
             Func<HttpResponseMessage, ValueTask<TResult>> callback,
             Stream contentStream,
             string uri,
-            HttpCompletionOption completionOption = HttpCompletionOption.ResponseHeadersRead,
+            HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead,
             bool isContentOwner = true
         ) =>
             new(

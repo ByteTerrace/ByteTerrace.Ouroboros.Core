@@ -16,7 +16,7 @@ namespace ByteTerrace.Ouroboros.Mvc
         protected HttpController(
             IHttpClientFactory httpClientFactory,
             string httpClientName,
-            ILogger<HttpController> logger,
+            ILogger logger,
             ITypedHttpClientFactory<GenericHttpClient> typedHttpClientFactory
         ) {
             var untypedHttpClient = httpClientFactory.CreateClient(name: httpClientName);

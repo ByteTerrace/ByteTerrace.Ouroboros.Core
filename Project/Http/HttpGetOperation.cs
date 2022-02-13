@@ -12,7 +12,7 @@
         public static HttpGetOperation<TResult> New(
             Func<HttpResponseMessage, ValueTask<TResult>> callback,
             string uri,
-            HttpCompletionOption completionOption = HttpCompletionOption.ResponseHeadersRead
+            HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead
         ) =>
             new(
                 Callback: callback,
