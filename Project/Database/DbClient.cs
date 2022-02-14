@@ -87,6 +87,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Releases all resources used by this <see cref="DbClient"/> instance.
         /// </summary>
+        /// <param name="isDisposing">Indicates whether the managed resources owned by this database client should be disposed.</param>
         protected virtual void Dispose(bool isDisposing) {
             if (!IsDisposed) {
                 if (isDisposing) {
@@ -104,7 +105,7 @@ namespace ByteTerrace.Ouroboros.Database
             }
         }
         /// <summary>
-        /// Releases all resources used by this <see cref="DbClient"/> instance.
+        /// Releases all resources used by this <see cref="DbClient"/> instance asynchronously.
         /// </summary>
         protected async virtual ValueTask DisposeAsyncCore() {
             if (!IsDisposed) {
