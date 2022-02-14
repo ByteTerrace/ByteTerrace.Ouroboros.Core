@@ -35,15 +35,15 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="options">The options that will be used to configure the database client.</param>
 
         protected DbClient(ILogger logger, DbClientOptions options) {
-            var connectionString = options.ConnectionString;
-            var providerFactory = options.ProviderFactory;
+            var connectionString = options?.ConnectionString;
+            var providerFactory = options?.ProviderFactory;
 
             if (string.IsNullOrEmpty(connectionString)) {
-                throw new NullReferenceException(message: "The specified connection string cannot be null or empty.");
+                throw new NullReferenceException(message: $"{nameof(options)}.{nameof(options.ConnectionString)} cannot be null or empty.");
             }
 
             if (providerFactory is null) {
-                throw new NullReferenceException(message: "The specified provider factory cannot be null");
+                throw new NullReferenceException(message: $"{nameof(options)}.{nameof(options.ProviderFactory)} cannot be null");
             }
 
             CommandBuilder = (providerFactory.CreateCommandBuilder() ?? throw new NullReferenceException(message: "Unable to construct a command builder from the specified provider factory."));
