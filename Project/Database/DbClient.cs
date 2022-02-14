@@ -82,8 +82,6 @@ namespace ByteTerrace.Ouroboros.Database
                     .DisposeAsync()
                     .ConfigureAwait(continueOnCapturedContext: false);
             }
-
-            IsDisposed = true;
         }
 
         /// <inheritdoc />
