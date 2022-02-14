@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ByteTerrace.Ouroboros.Database.MsSql
 {
@@ -12,36 +12,20 @@ namespace ByteTerrace.Ouroboros.Database.MsSql
         /// <summary>
         /// Initializes a new instance of the <see cref="MsSqlClient"/> class.
         /// </summary>
-        /// <param name="logger">The logger that will be associated with the database.</param>
-        /// <param name="name">The name that will be associated with the database.</param>
-        /// <param name="options">The options that will be used to configure the database.</param>
-        public static MsSqlClient New(
-            string name,
-            ILogger<MsSqlClient> logger,
-            IOptionsMonitor<MsSqlClientOptions> options
-        ) =>
-            new(
-                logger: logger,
-                name: name,
-                options: options
-            );
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MsSqlClient"/> class.
-        /// </summary>
         /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
         public static MsSqlClient New(string connectionString) =>
-            new(options: new(connectionString: connectionString));
+            new(
+                logger: NullLogger<MsSqlClient>.Instance,
+                options: new(connectionString: connectionString)
+            );
 
         private MsSqlClient(
-            string name,
             ILogger<MsSqlClient> logger,
-            IOptionsMonitor<MsSqlClientOptions> options
+            MsSqlClientOptions options
         ) : base(
             logger: logger,
-            name: name,
             options: options
         ) { }
-        private MsSqlClient(MsSqlClientOptions options) : base(options: options) { }
 
         private SqlBulkCopy InitializeBulkCopy(MsSqlClientBulkCopySettings bulkCopySettings) {
             var sqlBulkCopy = new SqlBulkCopy(((SqlConnection)Connection), bulkCopySettings.Options, bulkCopySettings.Transaction) {
