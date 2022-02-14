@@ -15,7 +15,7 @@ namespace ByteTerrace.Ouroboros.Database.MsSql
     /// <param name="TargetTableName">The name of the target table.</param>
     /// <param name="Timeout">The amount of time (in seconds) to wait for the operation to complete execution.</param>
     /// <param name="Transaction">The transaction object that the operation will be associated with.</param>
-    public readonly record struct MsSqlClientBulkCopySettings(
+    public readonly record struct MsSqlClientBulkCopy(
         int BatchSize,
         SqlBulkCopyColumnMapping[] ColumnMappings,
         bool EnableStreaming,
@@ -28,7 +28,7 @@ namespace ByteTerrace.Ouroboros.Database.MsSql
     )
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="MsSqlClientBulkCopySettings"/> struct.
+        /// Initializes a new instance of the <see cref="MsSqlClientBulkCopy"/> struct.
         /// </summary>
         /// <param name="batchSize">The number of rows to copy with each batch.</param>
         /// <param name="columnMappings">An optional array of objects that define the mapping between the source and target.</param>
@@ -39,7 +39,7 @@ namespace ByteTerrace.Ouroboros.Database.MsSql
         /// <param name="targetTableName">The name of the target table.</param>
         /// <param name="timeout">The amount of time (in seconds) to wait for the operation to complete execution.</param>
         /// <param name="transaction">The transaction object that the operation will be associated with.</param>
-        public static MsSqlClientBulkCopySettings New(
+        public static MsSqlClientBulkCopy New(
             IDataReader sourceDataReader,
             string targetSchemaName,
             string targetTableName,
