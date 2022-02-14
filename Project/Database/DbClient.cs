@@ -13,7 +13,10 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         /// <param name="logger">The logger that will be associated with the database.</param>
         /// <param name="options">The options that will be used to configure the database client.</param>
-        public static DbClient New(ILogger logger, DbClientOptions options) =>
+        public static DbClient New(
+            ILogger logger,
+            DbClientOptions options
+        ) =>
             new(
                 logger: logger,
                 options: options
@@ -34,7 +37,10 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="logger">The logger that will be associated with the database client.</param>
         /// <param name="options">The options that will be used to configure the database client.</param>
 
-        protected DbClient(ILogger logger, DbClientOptions options) {
+        protected DbClient(
+            ILogger logger,
+            DbClientOptions options
+        ) {
             var connectionString = options?.ConnectionString;
             var providerFactory = options?.ProviderFactory;
 

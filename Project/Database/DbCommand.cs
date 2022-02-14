@@ -55,7 +55,7 @@ namespace ByteTerrace.Ouroboros.Database
 
             if (Parameters is not null) {
                 foreach (var parameter in Parameters) {
-                    command.Parameters.Add(parameter.ToIDbDataParameter(command));
+                    command.Parameters.Add(value: parameter.ToIDbDataParameter(command: command));
                 }
             }
 
