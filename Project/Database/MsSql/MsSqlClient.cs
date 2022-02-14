@@ -1,6 +1,4 @@
 ﻿using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ByteTerrace.Ouroboros.Database.MsSql
 {
@@ -14,18 +12,9 @@ namespace ByteTerrace.Ouroboros.Database.MsSql
         /// </summary>
         /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
         public static MsSqlClient New(string connectionString) =>
-            new(
-                logger: NullLogger<MsSqlClient>.Instance,
-                options: new(connectionString: connectionString)
-            );
+            new(options: new(connectionString: connectionString));
 
-        private MsSqlClient(
-            ILogger<MsSqlClient> logger,
-            MsSqlClientOptions options
-        ) : base(
-            logger: logger,
-            options: options
-        ) { }
+        private MsSqlClient(MsSqlClientOptions options) : base(options: options) { }
 
         private SqlBulkCopy InitializeBulkCopy(MsSqlClientBulkCopy bulkCopy) {
             var sqlBulkCopy = new SqlBulkCopy(((SqlConnection)Connection), bulkCopy.Options, bulkCopy.Transaction) {

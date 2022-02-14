@@ -1,22 +1,50 @@
-﻿using System.Data.Common;
+﻿using Microsoft.Extensions.Logging;
+using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
 {
     public class DbClientOptions
     {
-        public string? ConnectionString { get; set; }
+        public static DbClientOptions New(
+            string connectionString,
+            ILogger logger,
+            bool ownsConnection,
+            DbProviderFactory providerFactory
+        ) {
+            if (string.IsNullOrEmpty(connectionString)) {
+                throw new ArgumentException(
+                    message: "Connection string cannot be null or empty.",
+                    paramName: nameof(connectionString)
+                );
+            }
+
+            var connection = (providerFactory.CreateConnection() ?? throw new NullReferenceException(message: "Unable to construct a connection from the specified provider factory."));
+
+            connection.ConnectionString = connectionString;
+
+            return new(
+                connection: connection,
+                logger: logger,
+                ownsConnection: ownsConnection,
+                providerFactory: providerFactory
+            );
+        }
+
+        public DbConnection? Connection { get; set; }
+        public ILogger? Logger { get; set; }
+        public bool OwnsConnection { get; set; }
         public DbProviderFactory? ProviderFactory { get; set; }
 
         public DbClientOptions(
-            string connectionString,
+            DbConnection? connection,
+            ILogger? logger,
+            bool ownsConnection,
             DbProviderFactory? providerFactory
         ) {
-            ConnectionString = connectionString;
+            Connection = connection;
+            Logger = logger;
+            OwnsConnection = ownsConnection;
             ProviderFactory = providerFactory;
         }
-        public DbClientOptions() : this(
-            connectionString: string.Empty,
-            providerFactory: default
-        ) { }
     }
 }

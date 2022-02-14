@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
@@ -11,16 +12,11 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Initializes a new instance of the <see cref="DbClient"/> class.
         /// </summary>
-        /// <param name="logger">The logger that will be associated with the database.</param>
         /// <param name="options">The options that will be used to configure the database client.</param>
-        public static DbClient New(
-            ILogger logger,
-            DbClientOptions options
-        ) =>
-            new(
-                logger: logger,
-                options: options
-            );
+        public static DbClient New(DbClientOptions options) =>
+            new(options: options);
+
+        private bool m_isDisposed;
 
         /// <inheritdoc />
         public DbCommandBuilder CommandBuilder { get; init; }
@@ -28,61 +24,79 @@ namespace ByteTerrace.Ouroboros.Database
         public DbConnection Connection { get; init; }
         /// <inheritdoc />
         public ILogger Logger { get; init; }
+        /// <summary>
+        /// Indicates whether this client owns the underlying database connection.
+        /// </summary>
+        public bool OwnsConnection { get; init; }
         /// <inheritdoc />
         public DbProviderFactory ProviderFactory { get; init; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DbClient"/> class.
         /// </summary>
-        /// <param name="logger">The logger that will be associated with the database client.</param>
         /// <param name="options">The options that will be used to configure the database client.</param>
+        protected DbClient(DbClientOptions options) {
+            var connection = options.Connection;
+            var logger = options.Logger;
+            var providerFactory = options.ProviderFactory;
 
-        protected DbClient(
-            ILogger logger,
-            DbClientOptions options
-        ) {
-            var connectionString = options?.ConnectionString;
-            var providerFactory = options?.ProviderFactory;
-
-            if (string.IsNullOrEmpty(connectionString)) {
-                throw new NullReferenceException(message: $"{nameof(options)}.{nameof(options.ConnectionString)} cannot be null or empty.");
+            if (connection is null) {
+                throw new NullReferenceException();
             }
 
             if (providerFactory is null) {
-                throw new NullReferenceException(message: $"{nameof(options)}.{nameof(options.ProviderFactory)} cannot be null");
+                throw new NullReferenceException();
+            }
+
+            if (logger is null) {
+                logger = NullLogger.Instance;
             }
 
             CommandBuilder = (providerFactory.CreateCommandBuilder() ?? throw new NullReferenceException(message: "Unable to construct a command builder from the specified provider factory."));
-            Connection = (providerFactory.CreateConnection() ?? throw new NullReferenceException(message: "Unable to construct a connection from the specified provider factory."));
+            Connection = connection;
             Logger = logger;
+            OwnsConnection = options.OwnsConnection;
             ProviderFactory = providerFactory;
-
-            Connection.ConnectionString = connectionString;
         }
 
         /// <summary>
         /// Releases all resources used by this <see cref="DbClient"/> instance.
         /// </summary>
+        protected virtual void Dispose(bool isDisposing) {
+            if (!m_isDisposed) {
+                if (isDisposing && OwnsConnection) {
+                    CommandBuilder.Dispose();
+                    Connection.Dispose();
+                }
+
+                m_isDisposed = true;
+            }
+        }
+        /// <summary>
+        /// Releases all resources used by this <see cref="DbClient"/> instance.
+        /// </summary>
         protected async virtual ValueTask DisposeAsyncCore() {
-            CommandBuilder.Dispose();
-            await Connection
-                .DisposeAsync()
-                .ConfigureAwait(continueOnCapturedContext: false);
+            if (!m_isDisposed && OwnsConnection) {
+                CommandBuilder.Dispose();
+                await Connection
+                    .DisposeAsync()
+                    .ConfigureAwait(continueOnCapturedContext: false);
+            }
+
+            m_isDisposed = true;
         }
 
         /// <inheritdoc />
         public void Dispose() {
-            CommandBuilder.Dispose();
-            Connection.Dispose();
-            GC.SuppressFinalize(this);
+            Dispose(isDisposing: true);
+            GC.SuppressFinalize(obj: this);
         }
         /// <inheritdoc />
         public async ValueTask DisposeAsync() {
-            await DisposeAsyncCore()
-                .ConfigureAwait(continueOnCapturedContext: false);
-            GC.SuppressFinalize(this);
+            await DisposeAsyncCore().ConfigureAwait(continueOnCapturedContext: false);
+            Dispose(isDisposing: false);
+            GC.SuppressFinalize(obj: this);
         }
-
         /// <summary>
         /// Convert this instance to the <see cref="IDbClient"/> interface.
         /// </summary>
