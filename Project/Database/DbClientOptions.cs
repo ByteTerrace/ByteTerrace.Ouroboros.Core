@@ -1,20 +1,22 @@
-﻿namespace ByteTerrace.Ouroboros.Database
+﻿using System.Data.Common;
+
+namespace ByteTerrace.Ouroboros.Database
 {
     public class DbClientOptions
     {
         public string? ConnectionString { get; set; }
-        public string? ProviderInvariantName { get; set; }
+        public DbProviderFactory? ProviderFactory { get; set; }
 
         public DbClientOptions(
             string connectionString,
-            string providerInvariantName
+            DbProviderFactory? providerFactory
         ) {
             ConnectionString = connectionString;
-            ProviderInvariantName = providerInvariantName;
+            ProviderFactory = providerFactory;
         }
         public DbClientOptions() : this(
             connectionString: string.Empty,
-            providerInvariantName: string.Empty
+            providerFactory: default
         ) { }
     }
 }

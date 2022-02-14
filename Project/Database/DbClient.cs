@@ -29,16 +29,9 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Initializes a new instance of the <see cref="DbClient"/> class.
         /// </summary>
-        /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
-        /// <param name="providerInvariantName">The invariant provider name.</param>
-        public static DbClient New(
-            string connectionString,
-            string providerInvariantName
-        ) =>
-            new(
-                connectionString: connectionString,
-                providerInvariantName: providerInvariantName
-            );
+        /// <param name="options">The options that will be used to configure the database client.</param>
+        public static DbClient New(DbClientOptions options) =>
+            new(options: options);
 
         /// <inheritdoc />
         public DbCommandBuilder CommandBuilder { get; init; }
@@ -52,42 +45,38 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Initializes a new instance of the <see cref="DbClient"/> class.
         /// </summary>
-        /// <param name="logger">The logger that will be associated with the database.</param>
-        /// <param name="name">The name that will be associated with the database.</param>
-        /// <param name="options">The options that will be used to configure the database.</param>
+        /// <param name="logger">The logger that will be associated with the database client.</param>
+        /// <param name="name">The name that will be associated with the database client.</param>
+        /// <param name="options">The options that will be used to configure the database client.</param>
         protected DbClient(
             string name,
             ILogger logger,
             IOptionsMonitor<DbClientOptions> options
         ) {
             var optionsValue = options.Get(name: name);
+            var connectionString = optionsValue.ConnectionString;
+            var providerFactory = optionsValue.ProviderFactory;
 
-            if (string.IsNullOrEmpty(optionsValue.ConnectionString)) {
-                throw new NullReferenceException();
+            if (string.IsNullOrEmpty(connectionString)) {
+                throw new NullReferenceException(message: "The specified connection string cannot be null or empty.");
             }
 
-            if (string.IsNullOrEmpty(optionsValue.ProviderInvariantName)) {
-                throw new NullReferenceException();
+            if (providerFactory is null) {
+                throw new NullReferenceException(message: "The specified provider factory cannot be null");
             }
-
-            var providerFactory = DbProviderFactories.GetFactory(providerInvariantName: optionsValue.ProviderInvariantName);
 
             CommandBuilder = (providerFactory.CreateCommandBuilder() ?? throw new NullReferenceException(message: "Unable to construct a command builder from the specified provider factory."));
             Connection = (providerFactory.CreateConnection() ?? throw new NullReferenceException(message: "Unable to construct a connection from the specified provider factory."));
             Logger = logger;
             ProviderFactory = providerFactory;
 
-            Connection.ConnectionString = optionsValue.ConnectionString;
+            Connection.ConnectionString = connectionString;
         }
         /// <summary>
         /// Initializes a new instance of the <see cref="DbClient"/> class.
         /// </summary>
-        /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
-        /// <param name="providerInvariantName">The invariant provider name.</param>
-        protected DbClient(
-            string connectionString,
-            string providerInvariantName
-        ) : this(
+        /// <param name="options">The options that will be used to configure the database client.</param>
+        protected DbClient(DbClientOptions options) : this(
             logger: NullLogger<DbClient>.Instance,
             name: string.Empty,
             options: new OptionsMonitor<DbClientOptions>(
@@ -96,8 +85,8 @@ namespace ByteTerrace.Ouroboros.Database
                     postConfigures: Array.Empty<IPostConfigureOptions<DbClientOptions>>(),
                     setups: new[] {
                         new ConfigureOptions<DbClientOptions>(action: (o) => {
-                            o.ConnectionString = connectionString;
-                            o.ProviderInvariantName = providerInvariantName;
+                            o.ConnectionString = options.ConnectionString;
+                            o.ProviderFactory = options.ProviderFactory;
                         }),
                     }
                 ),

@@ -45,7 +45,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         DbConnection Connection { get; init; }
         /// <summary>
-        /// Gets the logger that is associated with this database.
+        /// Gets the logger that is associated with this database client.
         /// </summary>
         public ILogger Logger { get; init; }
         /// <summary>

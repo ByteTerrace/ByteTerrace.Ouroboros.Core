@@ -1,7 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database.MsSql
 {
@@ -10,23 +9,6 @@ namespace ByteTerrace.Ouroboros.Database.MsSql
     /// </summary>
     public sealed class MsSqlClient : DbClient
     {
-        /// <summary>
-        /// The invariant name of the provider that will be used when constructing instances of the <see cref="MsSqlClient"/> class.
-        /// </summary>
-        public const string ProviderInvariantName = "Microsoft.Data.SqlClient";
-
-        static MsSqlClient() {
-            if (!DbProviderFactories.TryGetFactory(
-                factory: out _,
-                providerInvariantName: ProviderInvariantName
-            )) {
-                DbProviderFactories.RegisterFactory(
-                    factory: SqlClientFactory.Instance,
-                    providerInvariantName: ProviderInvariantName
-                );
-            }
-        }
-
         /// <summary>
         /// Initializes a new instance of the <see cref="MsSqlClient"/> class.
         /// </summary>
@@ -47,10 +29,8 @@ namespace ByteTerrace.Ouroboros.Database.MsSql
         /// Initializes a new instance of the <see cref="MsSqlClient"/> class.
         /// </summary>
         /// <param name="connectionString">The connection string that will be used when connecting to the database.</param>
-        public static MsSqlClient New(
-            string connectionString
-        ) =>
-            new(connectionString: connectionString);
+        public static MsSqlClient New(string connectionString) =>
+            new(options: new(connectionString: connectionString));
 
         private MsSqlClient(
             string name,
@@ -61,10 +41,7 @@ namespace ByteTerrace.Ouroboros.Database.MsSql
             name: name,
             options: options
         ) { }
-        private MsSqlClient(string connectionString) : base(
-            connectionString: connectionString,
-            providerInvariantName: ProviderInvariantName
-        ) { }
+        private MsSqlClient(MsSqlClientOptions options) : base(options: options) { }
 
         private SqlBulkCopy InitializeBulkCopy(MsSqlClientBulkCopySettings bulkCopySettings) {
             var sqlBulkCopy = new SqlBulkCopy(((SqlConnection)Connection), bulkCopySettings.Options, bulkCopySettings.Transaction) {
