@@ -49,6 +49,12 @@ namespace ByteTerrace.Ouroboros.Database
         /// <inheritdoc />
         public DbProviderFactory ProviderFactory { get; init; }
 
+        internal DbClient() {
+            IsDisposed = true;
+            Logger = NullLogger.Instance;
+            ProviderFactory = NullDbProviderFactory.Instance;
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DbClient"/> class.
         /// </summary>
