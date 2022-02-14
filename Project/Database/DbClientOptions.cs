@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Toolkit.Diagnostics;
 using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
@@ -12,13 +13,13 @@ namespace ByteTerrace.Ouroboros.Database
             DbProviderFactory providerFactory
         ) {
             if (string.IsNullOrEmpty(connectionString)) {
-                throw new ArgumentException(
+                ThrowHelper.ThrowArgumentException(
                     message: "Connection string cannot be null or empty.",
-                    paramName: nameof(connectionString)
+                    name: nameof(connectionString)
                 );
             }
 
-            var connection = (providerFactory.CreateConnection() ?? throw new NullReferenceException(message: "Unable to construct a connection from the specified provider factory."));
+            var connection = (providerFactory.CreateConnection() ?? ThrowHelper.ThrowNotSupportedException<DbConnection>(message: "Unable to construct a connection from the specified provider factory."));
 
             connection.ConnectionString = connectionString;
 

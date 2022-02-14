@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Toolkit.Diagnostics;
 using System.Data;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
@@ -45,14 +46,34 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         DbConnection Connection { get; init; }
         /// <summary>
+        /// Indicates whether the underlying resources of this database client have been disposed.
+        /// </summary>
+        public bool IsDisposed { get; }
+        /// <summary>
         /// Gets the logger that is associated with this database client.
         /// </summary>
         public ILogger Logger { get; init; }
+        /// <summary>
+        /// Indicates whether this client owns the underlying database connection.
+        /// </summary>
+        public bool OwnsConnection { get; init; }
         /// <summary>
         /// Gets the underlying database provider factory.
         /// </summary>
         public DbProviderFactory ProviderFactory { get; init; }
 
+        private bool ConnectionIsBrokenOrClosed() {
+            if (IsDisposed) {
+                ThrowHelper.ThrowObjectDisposedException(
+                    message: "Unable to make connection attempt with a client that has already been disposed.",
+                    objectName: nameof(IDbClient)
+                );
+            }
+
+            var connectionState = Connection.State;
+
+            return ((connectionState == ConnectionState.Closed) || (connectionState == ConnectionState.Broken));
+        }
         private DbFullyQualifiedIdentifier CreateIdentifier(
             string schemaName,
             string objectName
@@ -115,8 +136,11 @@ namespace ByteTerrace.Ouroboros.Database
 
                 if (connectionStringBuilder is not null) {
                     connectionStringBuilder.ConnectionString = Connection.ConnectionString;
-                    connectionStringBuilder["Password"] = default;
-                    connectionStringBuilder["User ID"] = default;
+                    connectionStringBuilder.Add("Persist Security Info", false);
+                    connectionStringBuilder.Remove("Password");
+                    connectionStringBuilder.Remove("PWD");
+                    connectionStringBuilder.Remove("UID");
+                    connectionStringBuilder.Remove("User ID");
                 }
 
                 DbClientLogging.OpenConnection(
@@ -362,9 +386,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// Attempts to open the underlying connection.
         /// </summary>
         public void OpenConnection() {
-            var connectionState = Connection.State;
-
-            if ((connectionState == ConnectionState.Closed) || (connectionState == ConnectionState.Broken)) {
+            if (ConnectionIsBrokenOrClosed()) {
                 LogOpenConnection();
                 Connection.Open();
             }
@@ -374,9 +396,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
         public async ValueTask OpenConnectionAsync(CancellationToken cancellationToken = default) {
-            var connectionState = Connection.State;
-
-            if ((connectionState == ConnectionState.Closed) || (connectionState == ConnectionState.Broken)) {
+            if (ConnectionIsBrokenOrClosed()) {
                 LogOpenConnection();
                 await Connection
                     .OpenAsync(cancellationToken: cancellationToken)
