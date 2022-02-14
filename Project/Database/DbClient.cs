@@ -17,10 +17,29 @@ namespace ByteTerrace.Ouroboros.Database
         public static DbClient New(DbClientOptions options) =>
             new(options: options);
 
+        private DbCommandBuilder? m_commandBuilder;
+        private DbConnection? m_connection;
+
         /// <inheritdoc />
-        public DbCommandBuilder CommandBuilder { get; init; }
+        public DbCommandBuilder CommandBuilder {
+            get {
+                if (m_commandBuilder is null) {
+                    ThrowHelper.ThrowObjectDisposedException(objectName: nameof(CommandBuilder));
+                }
+
+                return m_commandBuilder;
+            }
+        }
         /// <inheritdoc />
-        public DbConnection Connection { get; init; }
+        public DbConnection Connection {
+            get {
+                if (m_connection is null) {
+                    ThrowHelper.ThrowObjectDisposedException(objectName: nameof(Connection));
+                }
+
+                return m_connection;
+            }
+        }
         /// <inheritdoc />
         public bool IsDisposed { get; private set; }
         /// <inheritdoc />
@@ -37,6 +56,7 @@ namespace ByteTerrace.Ouroboros.Database
         protected DbClient(DbClientOptions options) {
             var connection = options.Connection;
             var logger = options.Logger;
+            var ownsConnection = options.OwnsConnection;
             var providerFactory = options.ProviderFactory;
 
             if (connection is null) {
@@ -51,11 +71,16 @@ namespace ByteTerrace.Ouroboros.Database
                 logger = NullLogger.Instance;
             }
 
-            CommandBuilder = (providerFactory.CreateCommandBuilder() ?? ThrowHelper.ThrowNotSupportedException<DbCommandBuilder>(message: "Unable to construct a command builder from the specified provider factory."));
-            Connection = connection;
+            if (!providerFactory.CanCreateCommandBuilder) {
+                ThrowHelper.ThrowNotSupportedException(message: "Unable to construct a command builder from the specified provider factory.");
+            }
+
+            m_commandBuilder = providerFactory.CreateCommandBuilder();
+            m_connection = connection;
+
             IsDisposed = false;
             Logger = logger;
-            OwnsConnection = options.OwnsConnection;
+            OwnsConnection = ownsConnection;
             ProviderFactory = providerFactory;
         }
 
@@ -64,10 +89,16 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         protected virtual void Dispose(bool isDisposing) {
             if (!IsDisposed) {
-                if (isDisposing && OwnsConnection) {
+                if (isDisposing) {
                     CommandBuilder.Dispose();
-                    Connection.Dispose();
+
+                    if (OwnsConnection) {
+                        Connection.Dispose();
+                    }
                 }
+
+                m_commandBuilder = null;
+                m_connection = null;
 
                 IsDisposed = true;
             }
@@ -76,11 +107,14 @@ namespace ByteTerrace.Ouroboros.Database
         /// Releases all resources used by this <see cref="DbClient"/> instance.
         /// </summary>
         protected async virtual ValueTask DisposeAsyncCore() {
-            if (!IsDisposed && OwnsConnection) {
+            if (!IsDisposed) {
                 CommandBuilder.Dispose();
-                await Connection
-                    .DisposeAsync()
-                    .ConfigureAwait(continueOnCapturedContext: false);
+
+                if (OwnsConnection) {
+                    await Connection
+                        .DisposeAsync()
+                        .ConfigureAwait(continueOnCapturedContext: false);
+                }
             }
         }
 

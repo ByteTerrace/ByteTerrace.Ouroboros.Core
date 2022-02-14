@@ -40,11 +40,11 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Gets the default database command builder.
         /// </summary>
-        DbCommandBuilder CommandBuilder { get; init; }
+        DbCommandBuilder CommandBuilder { get; }
         /// <summary>
         /// Gets the underlying database connection.
         /// </summary>
-        DbConnection Connection { get; init; }
+        DbConnection Connection { get; }
         /// <summary>
         /// Indicates whether the underlying resources of this database client have been disposed.
         /// </summary>
