@@ -59,7 +59,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// Initializes a new instance of the <see cref="DbClient"/> class.
         /// </summary>
         /// <param name="options">The options that will be used to configure the database client.</param>
-        protected DbClient(DbClientOptions options) {
+        public DbClient(DbClientOptions options) {
             var connection = options.Connection;
             var logger = options.Logger;
             var ownsConnection = options.OwnsConnection;

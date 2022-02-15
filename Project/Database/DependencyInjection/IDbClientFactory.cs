@@ -3,12 +3,13 @@
     /// /// <summary>
     /// Exposes factory operations that create <see cref="DbClient"/> instances.
     /// </summary>
-    public interface IDbClientFactory
+    /// <typeparam name="TClient"></typeparam>
+    public interface IDbClientFactory<TClient> where TClient : DbClient
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="DbClient"/> class.
         /// </summary>
         /// <param name="name">The name of the database client.</param>
-        DbClient NewDbClient(string name);
+        TClient NewDbClient(string name);
     }
 }

@@ -7,35 +7,60 @@ using System.Data.Common;
 namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
-    /// Extension methods to configure an <see cref="IServiceCollection"/> for <see cref="IDbClientFactory"/>.
+    /// Extension methods to configure an <see cref="IServiceCollection"/> for <see cref="IDbClientFactory{TClient}"/>.
     /// </summary>
     public static class DbClientFactoryServiceCollectionExtensions
     {
-        /// <summary>
-        /// Adds the <see cref="IDbClientFactory"/> and related services to the <see cref="IServiceCollection"/>.
-        /// </summary>
-        /// <param name="services">The collection of services that will be appended to.</param>
-        public static IServiceCollection AddDbClient(this IServiceCollection services) {
+        private static IServiceCollection AddDbClient<TClient, TClientOptions>(this IServiceCollection services)
+            where TClient : DbClient
+            where TClientOptions : DbClientOptions {
             services.AddLogging();
-            services.TryAddSingleton<DefaultDbClientFactory>();
-            services.TryAddSingleton<IDbClientFactory>(serviceProvider => serviceProvider.GetRequiredService<DefaultDbClientFactory>());
+            services.AddOptions();
+            services.TryAddSingleton<DefaultDbClientFactory<TClient, TClientOptions>>();
+            services.TryAddSingleton<IDbClientFactory<TClient>>(serviceProvider => serviceProvider.GetRequiredService<DefaultDbClientFactory<TClient, TClientOptions>>());
 
             return services;
         }
+        private static IDbClientBuilder ConfigureDbClient<TClient>(
+            this IDbClientBuilder clientBuilder,
+            Action<IServiceProvider, TClient> configureClient
+        ) where TClient : DbClient {
+            clientBuilder
+                .Services
+                .AddTransient<IConfigureOptions<DbClientFactoryOptions<TClient>>>(
+                    implementationFactory: (services) =>
+                        new ConfigureNamedOptions<DbClientFactoryOptions<TClient>>(
+                            action: (options) => {
+                                options.ClientActions.Add(item: (client) => configureClient(
+                                    arg1: services,
+                                    arg2: client
+                                ));
+                            },
+                            name: clientBuilder.Name
+                        )
+                );
+
+            return clientBuilder;
+        }
+
         /// <summary>
-        /// Adds the <see cref="IDbClientFactory"/> and related services to the <see cref="IServiceCollection"/>.
+        /// Adds the <see cref="IDbClientFactory{TClient}"/> and related services to the <see cref="IServiceCollection"/>.
         /// </summary>
         /// <param name="name">The name of the database client.</param>
         /// <param name="services">The collection of services that will be appended to.</param>
-        public static IDbClientBuilder AddDbClient(
+        /// <typeparam name="TClient">The type of database client that will be added.</typeparam>
+        /// <typeparam name="TClientOptions">The type of options that will be used to configure the database client.</typeparam>
+        public static IDbClientBuilder AddDbClient<TClient, TClientOptions>(
             this IServiceCollection services,
             string name
-        ) {
+        )
+            where TClient : DbClient
+            where TClientOptions : DbClientOptions {
             services
-                .AddDbClient()
-                .AddTransient<IConfigureOptions<DbClientOptions>>(
+                .AddDbClient<TClient, TClientOptions>()
+                .AddTransient<IConfigureOptions<TClientOptions>>(
                     implementationFactory: (serviceProvider) =>
-                        new ConfigureNamedOptions<DbClientOptions>(
+                        new ConfigureNamedOptions<TClientOptions>(
                             action: (options) => {
                                 var configuration = serviceProvider.GetRequiredService<IConfiguration>();
                                 var connectionStrings = configuration.GetSection(key: "ConnectionStrings");
@@ -48,10 +73,20 @@ namespace ByteTerrace.Ouroboros.Database
                         )
                 );
 
-            return DefaultDbClientBuilder.New(
-                name: name,
-                services: services
-            );
+            return DefaultDbClientBuilder
+                .New(
+                    name: name,
+                    services: services
+                )
+                .ConfigureDbClient<TClient>(
+                    configureClient: (serviceProvider, client) => {
+                        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+                        var connectionStrings = configuration.GetSection(key: "ConnectionStrings");
+                        var clientConnectionString = connectionStrings.GetSection(key: name);
+
+                        client.Connection.ConnectionString = clientConnectionString[key: "value"];
+                    }
+                );
         }
     }
 }

@@ -14,7 +14,11 @@ namespace ByteTerrace.Ouroboros.Database.MsSql
         public static MsSqlClient New(string connectionString) =>
             new(options: new(connectionString: connectionString));
 
-        private MsSqlClient(MsSqlClientOptions options) : base(options: options) { }
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MsSqlClient"/> class.
+        /// </summary>
+        /// <param name="options">The options that will be used to configure the database client.</param>
+        public MsSqlClient(MsSqlClientOptions options) : base(options: options) { }
 
         private SqlBulkCopy InitializeBulkCopy(MsSqlClientBulkCopy bulkCopy) {
             var sqlBulkCopy = new SqlBulkCopy(((SqlConnection)Connection), bulkCopy.Options, bulkCopy.Transaction) {

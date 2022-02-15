@@ -6,15 +6,17 @@ using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
 {
-    internal sealed class DefaultDbClientFactory : IDbClientFactory, IDbConnectionFactory
+    internal sealed class DefaultDbClientFactory<TClient, TClientOptions> : IDbClientFactory<TClient>, IDbConnectionFactory
+        where TClient : DbClient
+        where TClientOptions : DbClientOptions
     {
         private ILoggerFactory LoggerFactory { get; init; }
-        private IOptionsMonitor<DbClientFactoryOptions> OptionsMonitor { get; init; }
+        private IOptionsMonitor<DbClientFactoryOptions<TClient>> OptionsMonitor { get; init; }
         private IServiceProvider ServiceProvider { get; init; }
 
         public DefaultDbClientFactory(
             ILoggerFactory loggerFactory,
-            IOptionsMonitor<DbClientFactoryOptions> optionsMonitor,
+            IOptionsMonitor<DbClientFactoryOptions<TClient>> optionsMonitor,
             IServiceProvider serviceProvider
         ) {
             LoggerFactory = loggerFactory;
@@ -22,13 +24,14 @@ namespace ByteTerrace.Ouroboros.Database
             ServiceProvider = serviceProvider;
         }
 
-        public DbClient NewDbClient(string name) {
+        /// <inheritdoc />
+        public TClient NewDbClient(string name) {
             var clientOptions = ServiceProvider
-                .GetRequiredService<IOptionsMonitor<DbClientOptions>>()
+                .GetRequiredService<IOptionsMonitor<TClientOptions>>()
                 .Get(name: name);
             var providerFactory = clientOptions.ProviderFactory;
 
-            if (providerFactory == null) {
+            if (providerFactory is null) {
                 ThrowHelper.ThrowArgumentNullException(name: $"{nameof(clientOptions)}.{nameof(clientOptions.ProviderFactory)}");
             }
 
@@ -40,9 +43,12 @@ namespace ByteTerrace.Ouroboros.Database
             connection.ConnectionString = clientOptions.ConnectionString;
             clientOptions.Connection = connection;
             clientOptions.OwnsConnection = true;
-            clientOptions.Logger = LoggerFactory.CreateLogger<DbClient>();
+            clientOptions.Logger = LoggerFactory.CreateLogger<TClient>();
 
-            var client = DbClient.New(options: clientOptions);
+            var client = ((TClient)Activator.CreateInstance(
+                args: clientOptions,
+                type: typeof(TClient)
+            )!);
             var clientFactoryOptions = OptionsMonitor.Get(name: name);
             var clientActions = clientFactoryOptions.ClientActions;
             var clientActionsCount = clientActions.Count;
@@ -53,7 +59,11 @@ namespace ByteTerrace.Ouroboros.Database
 
             return client;
         }
-        public DbConnection NewDbConnection(string name, DbProviderFactory providerFactory) {
+        /// <inheritdoc />
+        public DbConnection NewDbConnection(
+            string name,
+            DbProviderFactory providerFactory
+        ) {
             var connection = providerFactory.CreateConnection(); // TODO: Cache connection instances by name.
 
             if (connection == null) {
