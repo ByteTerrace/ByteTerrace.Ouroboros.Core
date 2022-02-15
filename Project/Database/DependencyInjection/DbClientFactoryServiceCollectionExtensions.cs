@@ -44,7 +44,7 @@ namespace ByteTerrace.Ouroboros.Database
         }
 
         /// <summary>
-        /// Adds the <see cref="IDbClientFactory{TClient}"/> and related services to the <see cref="IServiceCollection"/>.
+        /// Adds the <see cref="IDbClientFactory{TClient}"/> and related services to the <see cref="IServiceCollection"/> for the specified name.
         /// </summary>
         /// <param name="name">The name of the database client.</param>
         /// <param name="services">The collection of services that will be appended to.</param>
