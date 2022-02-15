@@ -14,8 +14,6 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         public static NullDbConnection Instance { get; } = new();
 
-        private NullDbConnection() : base() { }
-
         /// <inheritdoc />
         [AllowNull]
         public override string ConnectionString { get; set; } = nameof(NullDbConnection);
@@ -27,6 +25,8 @@ namespace ByteTerrace.Ouroboros.Database
         public override string ServerVersion { get; } = nameof(NullDbConnection);
         /// <inheritdoc />
         public override ConnectionState State { get; } = ConnectionState.Closed;
+
+        private NullDbConnection() : base() { }
 
         /// <inheritdoc />
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel) =>

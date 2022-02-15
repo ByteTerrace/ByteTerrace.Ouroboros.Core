@@ -17,13 +17,13 @@ namespace ByteTerrace.Ouroboros.Database
 
         private ILogger<DefaultDbClientFactory<TClient, TClientOptions>> Logger { get; init; }
         private ILoggerFactory LoggerFactory { get; init; }
-        private IOptionsMonitor<DbClientFactoryOptions<TClient>> OptionsMonitor { get; init; }
+        private IOptionsMonitor<DbClientFactoryOptions<TClientOptions>> OptionsMonitor { get; init; }
         private IServiceProvider ServiceProvider { get; init; }
 
         public DefaultDbClientFactory(
             ILogger<DefaultDbClientFactory<TClient, TClientOptions>> logger,
             ILoggerFactory loggerFactory,
-            IOptionsMonitor<DbClientFactoryOptions<TClient>> optionsMonitor,
+            IOptionsMonitor<DbClientFactoryOptions<TClientOptions>> optionsMonitor,
             IServiceProvider serviceProvider
         ) {
             Logger = logger;
@@ -45,6 +45,14 @@ namespace ByteTerrace.Ouroboros.Database
             var clientOptions = ServiceProvider
                 .GetRequiredService<IOptionsMonitor<TClientOptions>>()
                 .Get(name: name);
+            var clientFactoryOptions = OptionsMonitor.Get(name: name);
+            var clientOptionsActions = clientFactoryOptions.ClientOptionsActions;
+            var clientOptionsActionsCount = clientOptionsActions.Count;
+
+            for (var i = 0; (i < clientOptionsActionsCount); ++i) {
+                clientOptionsActions[i](obj: clientOptions);
+            }
+
             var providerFactory = clientOptions.ProviderFactory;
 
             if (providerFactory is null) {
@@ -65,13 +73,6 @@ namespace ByteTerrace.Ouroboros.Database
                 args: clientOptions,
                 type: typeof(TClient)
             )!);
-            var clientFactoryOptions = OptionsMonitor.Get(name: name);
-            var clientActions = clientFactoryOptions.ClientActions;
-            var clientActionsCount = clientActions.Count;
-
-            for (var i = 0; (i < clientActionsCount); ++i) {
-                clientActions[i](obj: client);
-            }
 
             return client;
         }
