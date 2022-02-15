@@ -29,6 +29,9 @@ namespace ByteTerrace.Ouroboros.Database
 
                 return m_commandBuilder;
             }
+            init {
+                m_commandBuilder = value;
+            }
         }
         /// <inheritdoc />
         public DbConnection Connection {
@@ -38,6 +41,9 @@ namespace ByteTerrace.Ouroboros.Database
                 }
 
                 return m_connection;
+            }
+            init {
+                m_connection = value;
             }
         }
         /// <inheritdoc />
@@ -49,12 +55,17 @@ namespace ByteTerrace.Ouroboros.Database
         /// <inheritdoc />
         public DbProviderFactory ProviderFactory { get; init; }
 
-        internal DbClient() {
-            IsDisposed = true;
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DbClient"/> class.
+        /// </summary>
+        public DbClient() {
+            CommandBuilder = NullDbCommandBuilder.Instance;
+            Connection = NullDbConnection.Instance;
+            IsDisposed = false;
             Logger = NullLogger.Instance;
+            OwnsConnection = true;
             ProviderFactory = NullDbProviderFactory.Instance;
         }
-
         /// <summary>
         /// Initializes a new instance of the <see cref="DbClient"/> class.
         /// </summary>

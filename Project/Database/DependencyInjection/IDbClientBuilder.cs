@@ -3,7 +3,7 @@
 namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
-    /// Exposes operations for configuring named <see cref="DbClient"/> instances returned by <see cref="IDbClientFactory"/>.
+    /// Exposes operations for configuring named <see cref="DbClient"/> instances returned by a <see cref="IDbClientFactory{TClient}"/>.
     /// </summary>
     public interface IDbClientBuilder
     {

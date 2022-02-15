@@ -42,8 +42,8 @@ namespace ByteTerrace.Ouroboros.Database
 
             connection.ConnectionString = clientOptions.ConnectionString;
             clientOptions.Connection = connection;
-            clientOptions.OwnsConnection = true;
             clientOptions.Logger = LoggerFactory.CreateLogger<TClient>();
+            clientOptions.OwnsConnection = true; // TODO: Set to false after the connection cache is implemented.
 
             var client = ((TClient)Activator.CreateInstance(
                 args: clientOptions,
@@ -54,7 +54,7 @@ namespace ByteTerrace.Ouroboros.Database
             var clientActionsCount = clientActions.Count;
 
             for (var i = 0; (i < clientActionsCount); ++i) {
-                clientActions[i](client);
+                clientActions[i](obj: client);
             }
 
             return client;
@@ -66,7 +66,7 @@ namespace ByteTerrace.Ouroboros.Database
         ) {
             var connection = providerFactory.CreateConnection(); // TODO: Cache connection instances by name.
 
-            if (connection == null) {
+            if (connection is null) {
                 ThrowHelper.ThrowNotSupportedException(message: "Unable to construct a connection from the provider factory.");
             }
 
