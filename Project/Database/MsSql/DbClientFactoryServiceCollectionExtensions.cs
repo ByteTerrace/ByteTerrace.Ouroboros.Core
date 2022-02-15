@@ -1,5 +1,6 @@
 ﻿using ByteTerrace.Ouroboros.Database.MsSql;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Data.Common;
 
@@ -10,9 +11,9 @@ namespace ByteTerrace.Ouroboros.Database
     /// </summary>
     public static class MsSqlClientServiceCollectionExtensions
     {
-        static MsSqlClientServiceCollectionExtensions() {
-            const string SqlClientInvariantProviderName = "Microsoft.Data.SqlClient";
+        const string SqlClientInvariantProviderName = "Microsoft.Data.SqlClient";
 
+        static MsSqlClientServiceCollectionExtensions() {
             if (!DbProviderFactories.TryGetFactory(
                 factory: out _,
                 providerInvariantName: SqlClientInvariantProviderName
@@ -34,5 +35,24 @@ namespace ByteTerrace.Ouroboros.Database
             string name
         ) =>
             services.AddDbClient<MsSqlClient, MsSqlClientOptions>(name: name);
+        /// <summary>
+        /// Adds the <see cref="IDbClientFactory{MsSqlClient}"/> and related services to the <see cref="IServiceCollection"/> for all connections of type "Microsoft.Data.SqlClient".
+        /// </summary>
+        /// <param name="configuration">The configuration that will have its connection strings enumerated.</param>
+        /// <param name="services">The collection of services that will be appended to.</param>
+        public static IServiceCollection AddMsSqlClient(
+            this IServiceCollection services,
+            IConfiguration configuration
+        ) {
+            var connectionStrings = configuration.GetSection(key: "ConnectionStrings");
+
+            foreach (var clientConnectionString in connectionStrings.GetChildren()) {
+                if (clientConnectionString[key: "type"] == SqlClientInvariantProviderName) {
+                    services.AddMsSqlClient(name: clientConnectionString.Key);
+                }
+            }
+
+            return services;
+        }
     }
 }
