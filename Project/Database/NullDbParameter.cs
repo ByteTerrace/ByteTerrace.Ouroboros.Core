@@ -11,8 +11,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Gets a shared null instance of <see cref="NullDbParameter"/>.
         /// </summary>
-        public static NullDbParameter Instance =>
-            new();
+        public static NullDbParameter Instance { get; } = new();
 
         /// <inheritdoc />
         public override DbType DbType { get; set; }
@@ -32,6 +31,8 @@ namespace ByteTerrace.Ouroboros.Database
         public override bool SourceColumnNullMapping { get; set; }
         /// <inheritdoc />
         public override object? Value { get; set; } = nameof(NullDbParameter);
+
+        private NullDbParameter() { }
 
         /// <inheritdoc />
         public override void ResetDbType() { }

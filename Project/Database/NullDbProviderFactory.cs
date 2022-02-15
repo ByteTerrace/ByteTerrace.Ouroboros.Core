@@ -5,14 +5,13 @@ namespace ByteTerrace.Ouroboros.Database
     /// <summary>
     /// Provides a null instance of the <see cref="DbProviderFactory"/> class.
     /// </summary>
-    public static class NullDbProviderFactory
+    public sealed class NullDbProviderFactory : DbProviderFactory
     {
-        private class NullDbProviderFactoryImpl : DbProviderFactory { }
-
         /// <summary>
         /// Gets a shared null instance of <see cref="DbProviderFactory"/>.
         /// </summary>
-        public static DbProviderFactory Instance =>
-            new NullDbProviderFactoryImpl();
+        public static NullDbProviderFactory Instance { get; } = new();
+
+        private NullDbProviderFactory() { }
     }
 }

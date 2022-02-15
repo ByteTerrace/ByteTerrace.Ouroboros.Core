@@ -12,14 +12,12 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Gets a shared null instance of <see cref="NullDbCommand"/>.
         /// </summary>
-        public static NullDbCommand Instance =>
-            new();
+        public static NullDbCommand Instance { get; } = new();
 
         /// <inheritdoc />
         protected override DbConnection? DbConnection { get; set; } = NullDbConnection.Instance;
         /// <inheritdoc />
-        protected override DbParameterCollection DbParameterCollection =>
-            NullDbParameterCollection.Instance;
+        protected override DbParameterCollection DbParameterCollection { get; } = NullDbParameterCollection.Instance;
         /// <inheritdoc />
         protected override DbTransaction? DbTransaction { get; set; } = NullDbTransaction.Instance;
 
@@ -34,6 +32,8 @@ namespace ByteTerrace.Ouroboros.Database
         public override bool DesignTimeVisible { get; set; }
         /// <inheritdoc />
         public override UpdateRowSource UpdatedRowSource { get; set; }
+
+        private NullDbCommand() { }
 
         /// <inheritdoc />
         protected override System.Data.Common.DbParameter CreateDbParameter() =>

@@ -11,8 +11,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Gets a shared null instance of <see cref="NullDbDataReader"/>.
         /// </summary>
-        public static NullDbDataReader Instance =>
-            new();
+        public static NullDbDataReader Instance { get; } = new();
 
         /// <inheritdoc />
         public override object this[int ordinal] =>
@@ -35,6 +34,8 @@ namespace ByteTerrace.Ouroboros.Database
         /// <inheritdoc />
         public override int RecordsAffected =>
             default;
+
+        private NullDbDataReader() { }
 
         /// <inheritdoc />
         public override bool GetBoolean(int ordinal) =>

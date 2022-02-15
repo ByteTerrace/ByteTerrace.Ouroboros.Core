@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.Toolkit.Diagnostics;
 using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
@@ -11,6 +12,8 @@ namespace ByteTerrace.Ouroboros.Database
     /// </summary>
     public static class DbClientFactoryServiceCollectionExtensions
     {
+        private static HashSet<string> ConfiguredNamedConnections { get; } = new HashSet<string>();
+
         private static IServiceCollection AddDbClient<TClient, TClientOptions>(this IServiceCollection services)
             where TClient : DbClient
             where TClientOptions : DbClientOptions {
@@ -56,6 +59,12 @@ namespace ByteTerrace.Ouroboros.Database
         )
             where TClient : DbClient
             where TClientOptions : DbClientOptions {
+            var configuredNamedConnections = ConfiguredNamedConnections;
+
+            if (!configuredNamedConnections.Add(item: name)) {
+                ThrowHelper.ThrowArgumentException(message: $"A named connection with the key \"{name}\" has already been configured with the database client factory.");
+            }
+
             services
                 .AddDbClient<TClient, TClientOptions>()
                 .AddTransient<IConfigureOptions<TClientOptions>>(

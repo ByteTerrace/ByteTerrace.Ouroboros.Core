@@ -11,8 +11,9 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Gets a shared null instance of <see cref="NullDbCommandBuilder"/>.
         /// </summary>
-        public static NullDbCommandBuilder Instance =>
-            new();
+        public static NullDbCommandBuilder Instance { get; } = new();
+
+        private NullDbCommandBuilder() { }
 
         /// <inheritdoc />
         protected override void ApplyParameterInfo(System.Data.Common.DbParameter parameter, DataRow row, StatementType statementType, bool whereClause) { }

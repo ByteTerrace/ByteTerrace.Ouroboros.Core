@@ -87,13 +87,13 @@ namespace ByteTerrace.Ouroboros.Database
             string schemaName,
             string objectName
         ) {
-            var tableIdentifier = CreateIdentifier(
+            var objectIdentifier = CreateIdentifier(
                 objectName: objectName,
                 schemaName: schemaName
             );
 
             return DbCommand.New(
-                text: $"select * from {tableIdentifier};",
+                text: $"select * from {objectIdentifier};",
                 type: CommandType.Text
             );
         }

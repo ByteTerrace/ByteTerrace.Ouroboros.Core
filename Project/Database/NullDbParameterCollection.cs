@@ -11,8 +11,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Gets a shared null instance of <see cref="NullDbParameterCollection"/>.
         /// </summary>
-        public static NullDbParameterCollection Instance =>
-            new();
+        public static NullDbParameterCollection Instance { get; } = new();
 
         /// <inheritdoc />
         public override int Count =>
@@ -20,6 +19,8 @@ namespace ByteTerrace.Ouroboros.Database
         /// <inheritdoc />
         public override object SyncRoot =>
             nameof(NullDbDataReader);
+
+        private NullDbParameterCollection() { }
 
         /// <inheritdoc />
         protected override System.Data.Common.DbParameter GetParameter(int index) =>

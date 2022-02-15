@@ -12,8 +12,9 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Gets a shared null instance of <see cref="NullDbConnection"/>.
         /// </summary>
-        public static NullDbConnection Instance =>
-            new();
+        public static NullDbConnection Instance { get; } = new();
+
+        private NullDbConnection() { }
 
         /// <inheritdoc />
         [AllowNull]

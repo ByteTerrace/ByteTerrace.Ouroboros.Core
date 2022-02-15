@@ -11,8 +11,9 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Gets a shared null instance of <see cref="NullDbTransaction"/>.
         /// </summary>
-        public static NullDbTransaction Instance =>
-            new();
+        public static NullDbTransaction Instance { get; } = new();
+
+        private NullDbTransaction() { }
 
         /// <inheritdoc />
         public override IsolationLevel IsolationLevel =>

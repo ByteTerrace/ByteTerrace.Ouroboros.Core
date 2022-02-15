@@ -3,12 +3,13 @@
     /// <summary>
     /// Provides a null instance of the <see cref="DbClient"/> class.
     /// </summary>
-    public static class NullDbClient
+    public sealed class NullDbClient : DbClient
     {
         /// <summary>
         /// Gets a shared null instance of <see cref="DbClient"/>.
         /// </summary>
-        public static DbClient Instance =>
-            new();
+        public static DbClient Instance { get; } = new();
+
+        private NullDbClient() : base() { }
     }
 }
