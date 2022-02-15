@@ -32,7 +32,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// <inheritdoc />
         public override object? Value { get; set; } = nameof(NullDbParameter);
 
-        private NullDbParameter() { }
+        private NullDbParameter() : base() { }
 
         /// <inheritdoc />
         public override void ResetDbType() { }

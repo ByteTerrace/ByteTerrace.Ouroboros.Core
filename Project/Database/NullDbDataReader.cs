@@ -35,7 +35,7 @@ namespace ByteTerrace.Ouroboros.Database
         public override int RecordsAffected =>
             default;
 
-        private NullDbDataReader() { }
+        private NullDbDataReader(): base() { }
 
         /// <inheritdoc />
         public override bool GetBoolean(int ordinal) =>

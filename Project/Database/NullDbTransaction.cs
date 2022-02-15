@@ -13,7 +13,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         public static NullDbTransaction Instance { get; } = new();
 
-        private NullDbTransaction() { }
+        private NullDbTransaction() : base() { }
 
         /// <inheritdoc />
         public override IsolationLevel IsolationLevel =>

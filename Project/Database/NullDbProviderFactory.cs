@@ -12,6 +12,6 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         public static NullDbProviderFactory Instance { get; } = new();
 
-        private NullDbProviderFactory() { }
+        private NullDbProviderFactory() : base() { }
     }
 }

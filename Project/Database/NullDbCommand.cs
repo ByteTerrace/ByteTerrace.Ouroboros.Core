@@ -33,7 +33,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// <inheritdoc />
         public override UpdateRowSource UpdatedRowSource { get; set; }
 
-        private NullDbCommand(): base() { }
+        private NullDbCommand() : base() { }
 
         /// <inheritdoc />
         protected override System.Data.Common.DbParameter CreateDbParameter() =>

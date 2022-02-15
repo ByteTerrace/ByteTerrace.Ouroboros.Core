@@ -13,7 +13,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         public static NullDbCommandBuilder Instance { get; } = new();
 
-        private NullDbCommandBuilder(): base() { }
+        private NullDbCommandBuilder() : base() { }
 
         /// <inheritdoc />
         protected override void ApplyParameterInfo(System.Data.Common.DbParameter parameter, DataRow row, StatementType statementType, bool whereClause) { }

@@ -20,7 +20,7 @@ namespace ByteTerrace.Ouroboros.Database
         public override object SyncRoot =>
             nameof(NullDbDataReader);
 
-        private NullDbParameterCollection() { }
+        private NullDbParameterCollection() : base() { }
 
         /// <inheritdoc />
         protected override System.Data.Common.DbParameter GetParameter(int index) =>
