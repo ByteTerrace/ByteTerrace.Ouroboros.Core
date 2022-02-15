@@ -14,7 +14,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         public static NullDbConnection Instance { get; } = new();
 
-        private NullDbConnection() { }
+        private NullDbConnection() : base() { }
 
         /// <inheritdoc />
         [AllowNull]
