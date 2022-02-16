@@ -28,13 +28,18 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Adds the <see cref="IDbClientFactory{MsSqlClient}"/> and related services to the <see cref="IServiceCollection"/> for the specified name.
         /// </summary>
-        /// <param name="name">The name of the database client.</param>
+        /// <param name="clientName">The name of the database client.</param>
+        /// <param name="connectionName">The name of the database connection.</param>
         /// <param name="services">The collection of services that will be appended to.</param>
         public static IDbClientBuilder AddMsSqlClient(
             this IServiceCollection services,
-            string name
+            string clientName,
+            string connectionName
         ) =>
-            services.AddDbClient<MsSqlClient, MsSqlClientOptions>(name: name);
+            services.AddDbClient<MsSqlClient, MsSqlClientOptions>(
+                clientName: clientName,
+                connectionName: connectionName
+            );
         /// <summary>
         /// Adds the <see cref="IDbClientFactory{MsSqlClient}"/> and related services to the <see cref="IServiceCollection"/> for all connections of type "Microsoft.Data.SqlClient".
         /// </summary>
@@ -48,7 +53,10 @@ namespace ByteTerrace.Ouroboros.Database
 
             foreach (var clientConnectionString in connectionStrings.GetChildren()) {
                 if (clientConnectionString[key: "type"] == SqlClientInvariantProviderName) {
-                    services.AddMsSqlClient(name: clientConnectionString.Key);
+                    services.AddMsSqlClient(
+                        clientName: string.Empty,
+                        connectionName: clientConnectionString.Key
+                    );
                 }
             }
 

@@ -2,26 +2,22 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Toolkit.Diagnostics;
-using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
 {
-    internal sealed class DefaultDbClientFactory<TClient, TClientOptions> : IDbClientFactory<TClient>, IDbConnectionFactory
+    internal sealed class DbClientFactory<TClient, TClientOptions> : IDbClientFactory<TClient>, IDbConnectionFactory
         where TClient : DbClient
         where TClientOptions : DbClientOptions
     {
-        /// <summary>
-        /// The default level that will be used during log operations.
-        /// </summary>
         const LogLevel DefaultLogLevel = LogLevel.Trace;
 
-        private ILogger<DefaultDbClientFactory<TClient, TClientOptions>> Logger { get; init; }
+        private ILogger<DbClientFactory<TClient, TClientOptions>> Logger { get; init; }
         private ILoggerFactory LoggerFactory { get; init; }
         private IOptionsMonitor<DbClientFactoryOptions<TClientOptions>> OptionsMonitor { get; init; }
         private IServiceProvider ServiceProvider { get; init; }
 
-        public DefaultDbClientFactory(
-            ILogger<DefaultDbClientFactory<TClient, TClientOptions>> logger,
+        public DbClientFactory(
+            ILogger<DbClientFactory<TClient, TClientOptions>> logger,
             ILoggerFactory loggerFactory,
             IOptionsMonitor<DbClientFactoryOptions<TClientOptions>> optionsMonitor,
             IServiceProvider serviceProvider
@@ -32,10 +28,9 @@ namespace ByteTerrace.Ouroboros.Database
             ServiceProvider = serviceProvider;
         }
 
-        /// <inheritdoc />
         public TClient NewDbClient(string name) {
             if (Logger.IsEnabled(DefaultLogLevel)) {
-                DefaultDbClientFactoryLogging.CreateClient(
+                DbClientFactoryLogging.CreateClient(
                     logger: Logger,
                     logLevel: DefaultLogLevel,
                     name: name
@@ -59,7 +54,7 @@ namespace ByteTerrace.Ouroboros.Database
                 ThrowHelper.ThrowArgumentNullException(name: $"{nameof(clientOptions)}.{nameof(clientOptions.ProviderFactory)}");
             }
 
-            var connection = NewDbConnection(
+            var connection = ((IDbConnectionFactory)this).NewDbConnection(
                 name: name,
                 providerFactory: providerFactory
             );
@@ -69,33 +64,10 @@ namespace ByteTerrace.Ouroboros.Database
             clientOptions.Logger = LoggerFactory.CreateLogger<TClient>();
             clientOptions.OwnsConnection = true;
 
-            var client = ((TClient)Activator.CreateInstance(
+            return ((TClient)Activator.CreateInstance(
                 args: clientOptions,
                 type: typeof(TClient)
             )!);
-
-            return client;
-        }
-        /// <inheritdoc />
-        public DbConnection NewDbConnection(
-            string name,
-            DbProviderFactory providerFactory
-        ) {
-            if (Logger.IsEnabled(DefaultLogLevel)) {
-                DefaultDbClientFactoryLogging.CreateConnection(
-                    logger: Logger,
-                    logLevel: DefaultLogLevel,
-                    name: name
-                );
-            }
-
-            var connection = providerFactory.CreateConnection();
-
-            if (connection is null) {
-                ThrowHelper.ThrowNotSupportedException(message: "Unable to construct a connection from the provider factory.");
-            }
-
-            return connection;
         }
     }
 }

@@ -2,9 +2,9 @@
 
 namespace ByteTerrace.Ouroboros.Database
 {
-    internal sealed class DefaultDbClientBuilder : IDbClientBuilder
+    internal sealed class DbClientBuilder : IDbClientBuilder
     {
-        public static DefaultDbClientBuilder New(
+        public static DbClientBuilder New(
             string name,
             IServiceCollection services
         ) =>
@@ -13,12 +13,10 @@ namespace ByteTerrace.Ouroboros.Database
                 services: services
             );
 
-        /// <inheritdoc />
         public string Name { get; }
-        /// <inheritdoc />
         public IServiceCollection Services { get; }
 
-        private DefaultDbClientBuilder(
+        private DbClientBuilder(
             string name,
             IServiceCollection services
         ) {

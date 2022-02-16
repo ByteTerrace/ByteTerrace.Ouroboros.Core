@@ -30,6 +30,11 @@ namespace ByteTerrace.Ouroboros.Database
                 ownsConnection: ownsConnection,
                 providerFactory: providerFactory
             );
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DbClientOptions"/> class.
+        /// </summary>
+        public static DbClientOptions New() =>
+            new();
 
         /// <summary>
         /// Gets or sets the database client connection.

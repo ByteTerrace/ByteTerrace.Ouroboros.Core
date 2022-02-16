@@ -3,7 +3,7 @@ using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
 {
-    internal static partial class DefaultDbClientFactoryLogging
+    internal static partial class DbClientFactoryLogging
     {
         [LoggerMessage(
             EventId = 0,
