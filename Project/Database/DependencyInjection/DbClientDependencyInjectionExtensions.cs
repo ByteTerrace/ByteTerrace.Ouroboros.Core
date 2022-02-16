@@ -20,15 +20,15 @@ namespace ByteTerrace.Ouroboros.Database
             where TClientOptions : DbClientOptions {
             services.AddLogging();
             services.AddOptions();
-            services.TryAddSingleton<DbClientFactory<DbClient, DbClientOptions>>();
+            services.TryAddSingleton<ServiceProviderDbClientFactory<DbClient, DbClientOptions>>();
             services.TryAddSingleton<IDbClientFactory<DbClient>>(
                 implementationFactory: serviceProvider =>
-                    serviceProvider.GetRequiredService<DbClientFactory<DbClient, DbClientOptions>>()
+                    serviceProvider.GetRequiredService<ServiceProviderDbClientFactory<DbClient, DbClientOptions>>()
             );
-            services.TryAddSingleton<DbClientFactory<TClient, TClientOptions>>();
+            services.TryAddSingleton<ServiceProviderDbClientFactory<TClient, TClientOptions>>();
             services.TryAddSingleton<IDbClientFactory<TClient>>(
                 implementationFactory: serviceProvider =>
-                    serviceProvider.GetRequiredService<DbClientFactory<TClient, TClientOptions>>()
+                    serviceProvider.GetRequiredService<ServiceProviderDbClientFactory<TClient, TClientOptions>>()
             );
 
             return services;
@@ -85,22 +85,20 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Adds the <see cref="IDbClientFactory{TClient}"/> and related services to the <see cref="IServiceCollection"/>.
         /// </summary>
-        /// <param name="clientName">The name of the database client that will be configured.</param>
         /// <param name="connectionName">The name of the database connection.</param>
         /// <param name="services">The collection of services that will be appended to.</param>
         /// <typeparam name="TClient">The type of database client that will be added.</typeparam>
         /// <typeparam name="TClientOptions">The type of options that will be used to configure the database client.</typeparam>
         public static IDbClientBuilder AddDbClient<TClient, TClientOptions>(
             this IServiceCollection services,
-            string clientName,
             string connectionName
         )
             where TClient : DbClient
             where TClientOptions : DbClientOptions {
             var configuredClientNames = ConfiguredClientNames;
 
-            if (!configuredClientNames.Add(item: clientName)) {
-                ThrowHelper.ThrowArgumentException(message: $"A client named \"{clientName}\" has already been configured with the database client factory service.");
+            if (!configuredClientNames.Add(item: connectionName)) {
+                ThrowHelper.ThrowArgumentException(message: $"A connection named \"{connectionName}\" has already been configured with the database client factory service.");
             }
 
             services
@@ -110,7 +108,7 @@ namespace ByteTerrace.Ouroboros.Database
 
             return DbClientBuilder
                 .New(
-                    name: clientName,
+                    name: connectionName,
                     services: services
                 )
                 .ConfigureDbClient(configureClient: GetConfigureOptionsFunc<DbClientOptions>(connectionName: connectionName))
@@ -119,38 +117,26 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Adds the <see cref="IDbClientFactory{DbClient}"/> and related services to the <see cref="IServiceCollection"/>.
         /// </summary>
-        /// <param name="clientName">The name of the database client that will be configured.</param>
         /// <param name="connectionName">The name of the database connection.</param>
         /// <param name="services">The collection of services that will be appended to.</param>
         public static IDbClientBuilder AddDbClient(
             this IServiceCollection services,
-            string clientName,
             string connectionName
         ) =>
-            services.AddDbClient<DbClient, DbClientOptions>(
-                clientName: clientName,
-                connectionName: connectionName
-            );
+            services.AddDbClient<DbClient, DbClientOptions>(connectionName: connectionName);
         /// <summary>
         /// Adds the <see cref="IDbClientConfigurationRefresher"/> and related services to the <see cref="IServiceCollection"/>.
         /// </summary>
         /// <param name="builder">The configuration builder that will be appended to.</param>
-        /// <param name="clientName">The name of the database client that will be configured.</param>
-        /// <param name="connectionName">The name of the database connection that configuration data will be retrieved from.</param>
         /// <param name="services">The collection of services that will be appended to.</param>
         public static IConfigurationBuilder AddDbClientConfiguration(
                this IConfigurationBuilder builder,
                IServiceCollection services,
-               string clientName,
-               string connectionName
+               IEnumerable<string> connectionNames
         ) {
             services.AddDbClientConfiguration();
-            services.AddDbClient<DbClient, DbClientOptions>(
-                clientName: clientName,
-                connectionName: connectionName
-            );
 
-            return builder.Add(DbClientConfigurationSource.New(name: connectionName));
+            return builder.Add(DbClientConfigurationSource.New(names: connectionNames));
         }
         /// <summary>
         /// Adds middleware that will automatically refresh <see cref="IConfiguration"/> values from configured database clients.
@@ -161,7 +147,7 @@ namespace ByteTerrace.Ouroboros.Database
                 .ApplicationServices
                 .GetRequiredService<IDbClientConfigurationRefresherProvider>();
 
-            return builder.UseMiddleware<DbClientConfigurationRefreshMiddleware>();
+            return builder.UseMiddleware<DbClientConfigurationMiddleware>();
         }
     }
 }

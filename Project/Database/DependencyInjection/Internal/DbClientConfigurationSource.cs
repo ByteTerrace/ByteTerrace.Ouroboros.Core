@@ -4,19 +4,16 @@ namespace ByteTerrace.Ouroboros.Database
 {
     internal sealed class DbClientConfigurationSource : IConfigurationSource
     {
-        public static DbClientConfigurationSource New(string name) =>
-            new(name: name);
+        public static DbClientConfigurationSource New(IEnumerable<string> names) =>
+            new(names: names);
 
-        public string Name { get; init; }
+        public IEnumerable<string> Names { get; init; }
 
-        public DbClientConfigurationSource(string name) {
-            Name = name;
+        private DbClientConfigurationSource(IEnumerable<string> names) {
+            Names = names;
         }
 
         public IConfigurationProvider Build(IConfigurationBuilder configurationBuilder) =>
-            new DbClientConfigurationProvider(
-                factory: new ConfigurationDbClientFactory(configuraton: configurationBuilder.Build()),
-                name: Name
-            );
+            DbClientConfigurationProvider.New(clientFactory: ConfigurationDbClientFactory.New(configuration: configurationBuilder.Build()));
     }
 }

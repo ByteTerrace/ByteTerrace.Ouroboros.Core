@@ -1,11 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
-
-namespace ByteTerrace.Ouroboros.Database
+﻿namespace ByteTerrace.Ouroboros.Database
 {
     internal interface IDbClientConfigurationRefresher
     {
-        ILoggerFactory LoggerFactory { get; set; }
-
-        Task RefreshAsync(CancellationToken cancellationToken = default);
+        IDbClientFactory<DbClient> ClientFactory { get; set; }
+        ValueTask RefreshAsync(CancellationToken cancellationToken = default);
     }
 }

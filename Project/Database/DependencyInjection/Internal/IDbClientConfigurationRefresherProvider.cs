@@ -2,6 +2,6 @@
 {
     internal interface IDbClientConfigurationRefresherProvider
     {
-        IEnumerable<IDbClientConfigurationRefresher> Refreshers { get; }
+        IEnumerable<IDbClientConfigurationRefresher> Refreshers { get; init; }
     }
 }

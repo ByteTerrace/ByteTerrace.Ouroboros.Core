@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Toolkit.Diagnostics;
 
 namespace ByteTerrace.Ouroboros.Database
@@ -9,8 +8,8 @@ namespace ByteTerrace.Ouroboros.Database
         public IEnumerable<IDbClientConfigurationRefresher> Refreshers { get; init; }
 
         public DbClientConfigurationRefresherProvider(
-            IConfiguration configuration,
-            ILoggerFactory loggerFactory
+            IDbClientFactory<DbClient> clientFactory,
+            IConfiguration configuration
         ) {
             var configurationRoot = configuration as IConfigurationRoot;
             var refreshers = new List<IDbClientConfigurationRefresher>();
@@ -18,9 +17,7 @@ namespace ByteTerrace.Ouroboros.Database
             if (configurationRoot is not null) {
                 foreach (IConfigurationProvider provider in configurationRoot.Providers) {
                     if (provider is IDbClientConfigurationRefresher refresher) {
-                        if (refresher.LoggerFactory is null) {
-                            refresher.LoggerFactory = loggerFactory;
-                        }
+                        refresher.ClientFactory = clientFactory;
 
                         refreshers.Add(refresher);
                     }

@@ -5,19 +5,19 @@ using Microsoft.Toolkit.Diagnostics;
 
 namespace ByteTerrace.Ouroboros.Database
 {
-    internal sealed class DbClientFactory<TClient, TClientOptions> : IDbClientFactory<TClient>, IDbConnectionFactory
+    internal sealed class ServiceProviderDbClientFactory<TClient, TClientOptions> : IDbClientFactory<TClient>, IDbConnectionFactory
         where TClient : DbClient
         where TClientOptions : DbClientOptions
     {
         const LogLevel DefaultLogLevel = LogLevel.Trace;
 
-        private ILogger<DbClientFactory<TClient, TClientOptions>> Logger { get; init; }
+        private ILogger<ServiceProviderDbClientFactory<TClient, TClientOptions>> Logger { get; init; }
         private ILoggerFactory LoggerFactory { get; init; }
         private IOptionsMonitor<DbClientFactoryOptions<TClientOptions>> OptionsMonitor { get; init; }
         private IServiceProvider ServiceProvider { get; init; }
 
-        public DbClientFactory(
-            ILogger<DbClientFactory<TClient, TClientOptions>> logger,
+        public ServiceProviderDbClientFactory(
+            ILogger<ServiceProviderDbClientFactory<TClient, TClientOptions>> logger,
             ILoggerFactory loggerFactory,
             IOptionsMonitor<DbClientFactoryOptions<TClientOptions>> optionsMonitor,
             IServiceProvider serviceProvider
