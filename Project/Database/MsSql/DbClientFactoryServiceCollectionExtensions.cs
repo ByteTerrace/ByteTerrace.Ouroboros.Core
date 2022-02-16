@@ -30,7 +30,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         /// <param name="connectionName">The name of the database connection.</param>
         /// <param name="services">The collection of services that will be appended to.</param>
-        public static IDbClientBuilder AddMsSqlClient(
+        public static IServiceCollection AddMsSqlClient(
             this IServiceCollection services,
             string connectionName
         ) =>

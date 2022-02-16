@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 
 namespace ByteTerrace.Ouroboros.Database
 {
@@ -16,10 +17,16 @@ namespace ByteTerrace.Ouroboros.Database
             Refreshers = refresherProvider.Refreshers;
         }
 
-        public async Task InvokeAsync(HttpContext context) {
+        public async Task InvokeAsync(
+            HttpContext context,
+            IOptionsMonitor<DbClientConfigurationOptions> optionsMonitor
+        ) {
             foreach (var refresher in Refreshers) {
                 await refresher
-                    .RefreshAsync(cancellationToken: default)
+                    .RefreshAsync(
+                        cancellationToken: default,
+                        optionsMonitor: optionsMonitor
+                    )
                     .ConfigureAwait(continueOnCapturedContext: false);
             }
 

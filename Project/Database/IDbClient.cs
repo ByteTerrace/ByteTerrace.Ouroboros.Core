@@ -194,14 +194,14 @@ namespace ByteTerrace.Ouroboros.Database
         /// Enumerates each result set in the specified data reader asynchronously.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <param name="dataReader">The data reader that will be enumerated.</param>
+        /// <param name="reader">The data reader that will be enumerated.</param>
         public async IAsyncEnumerable<DbResultSet> EnumerateResultSetsAsync(
-            DbDataReader dataReader,
+            DbDataReader reader,
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         ) {
             do {
-                yield return DbResultSet.New(dataReader: dataReader);
-            } while (await dataReader
+                yield return DbResultSet.New(dataReader: reader);
+            } while (await reader
                 .NextResultAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false)
             );
@@ -252,7 +252,7 @@ namespace ByteTerrace.Ouroboros.Database
                 );
             await using var enumerator = EnumerateResultSetsAsync(
                     cancellationToken: cancellationToken,
-                    dataReader: dataReader
+                    reader: dataReader
                 )
                 .GetAsyncEnumerator(cancellationToken: cancellationToken);
 

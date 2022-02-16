@@ -12,7 +12,7 @@ namespace ByteTerrace.Ouroboros.Database
     /// <param name="Transaction">The transaction object that the command will be associated with.</param>
     public readonly record struct DbStoredProcedureCall(
         string Name,
-        DbParameter[]? Parameters,
+        IEnumerable<DbParameter>? Parameters,
         int Timeout,
         DbTransaction? Transaction
     )
@@ -31,7 +31,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="parameters">The parameters that will be supplied to the stored procedure.</param>
         public static DbStoredProcedureCall New(
             string name,
-            params DbParameter[]? parameters
+            IEnumerable<DbParameter>? parameters
         ) =>
             new(
                 Name: name,

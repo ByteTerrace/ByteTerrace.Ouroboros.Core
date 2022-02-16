@@ -38,7 +38,10 @@ namespace ByteTerrace.Ouroboros.Database
         /// </summary>
         public IEnumerator<DbRow> GetEnumerator() {
             var fieldCount = FieldMetadata.Count;
-            var fieldNameToOrdinalMap = new Dictionary<string, int>(capacity: fieldCount);
+            var fieldNameToOrdinalMap = new Dictionary<string, int>(
+                capacity: fieldCount,
+                comparer: StringComparer.OrdinalIgnoreCase
+            );
 
             for (var i = 0; (i < fieldCount); ++i) {
                 var fieldMetadata = FieldMetadata[i];

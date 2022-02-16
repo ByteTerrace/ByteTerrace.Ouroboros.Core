@@ -12,7 +12,7 @@ namespace ByteTerrace.Ouroboros.Database
     /// <param name="Transaction">The transaction object that the command will be associated with.</param>
     /// <param name="Type">The type of command to execute.</param>
     public readonly record struct DbCommand(
-        DbParameter[]? Parameters,
+        IEnumerable<DbParameter>? Parameters,
         string Text,
         int Timeout,
         DbTransaction? Transaction,
@@ -29,7 +29,7 @@ namespace ByteTerrace.Ouroboros.Database
         /// <param name="type">The type of command to execute.</param>
         public static DbCommand New(
             string text,
-            DbParameter[]? parameters = default,
+            IEnumerable<DbParameter>? parameters = default,
             int? timeout = default,
             CommandType? type = default,
             DbTransaction? transaction = default
