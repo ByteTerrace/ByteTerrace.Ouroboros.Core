@@ -74,7 +74,10 @@ namespace ByteTerrace.Ouroboros.Database
             var clientConfigurationOptionsActionsCount = clientConfigurationOptionsActions.Count;
 
             for (var i = 0; (i < clientConfigurationOptionsActionsCount); ++i) {
-                clientConfigurationOptionsActions[i](obj: clientConfigurationOptions);
+                clientConfigurationOptionsActions[i](
+                    arg1: new ConfigurationBuilder().Build(),
+                    arg2: clientConfigurationOptions
+                );
             }
 
             using var client = GetClient(clientConfigurationOptions.ConnectionName);
@@ -98,6 +101,7 @@ namespace ByteTerrace.Ouroboros.Database
         }
 
         public async ValueTask RefreshAsync(
+            IConfiguration configuration,
             IOptionsMonitor<DbClientConfigurationProviderOptions> optionsMonitor,
             CancellationToken cancellationToken = default
         ) {
@@ -107,7 +111,10 @@ namespace ByteTerrace.Ouroboros.Database
             var clientConfigurationOptionsActionsCount = clientConfigurationOptionsActions.Count;
 
             for (var i = 0; (i < clientConfigurationOptionsActionsCount); ++i) {
-                clientConfigurationOptionsActions[i](obj: clientConfigurationOptions);
+                clientConfigurationOptionsActions[i](
+                    arg1: configuration,
+                    arg2: clientConfigurationOptions
+                );
             }
 
             using var client = GetClient(clientConfigurationOptions.ConnectionName);

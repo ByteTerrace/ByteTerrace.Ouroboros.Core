@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace ByteTerrace.Ouroboros.Database
 {
@@ -6,6 +7,7 @@ namespace ByteTerrace.Ouroboros.Database
     {
         IDbClientFactory<DbClient> ClientFactory { get; set; }
         ValueTask RefreshAsync(
+            IConfiguration configuration,
             IOptionsMonitor<DbClientConfigurationProviderOptions> optionsMonitor,
             CancellationToken cancellationToken = default
         );

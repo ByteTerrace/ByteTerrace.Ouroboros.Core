@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Microsoft.Toolkit.Diagnostics;
 using System.Data.Common;
+using System.Reflection;
 
 namespace ByteTerrace.Ouroboros.Database
 {
@@ -61,21 +62,43 @@ namespace ByteTerrace.Ouroboros.Database
         private static IServiceCollection ConfigureDbClientConfiguration(
             this IServiceCollection services,
             string providerName,
-            Action<IServiceProvider, DbClientConfigurationOptions> configureClientOptions
+            Action<IConfiguration, DbClientConfigurationOptions> configureClientOptions
         ) =>
             services
                 .AddTransient<IConfigureOptions<DbClientConfigurationProviderOptions>>(
                     implementationFactory: (serviceProvider) =>
                         new ConfigureNamedOptions<DbClientConfigurationProviderOptions>(
                             action: (options) => {
-                                options.ClientConfigurationOptionsActions.Add(item: (clientOptions) => configureClientOptions(
-                                    arg1: serviceProvider,
-                                    arg2: clientOptions
-                                ));
+                                options.ClientConfigurationOptionsActions.Add(
+                                    item: (configuration, clientOptions) => configureClientOptions(
+                                        arg1: configuration,
+                                        arg2: clientOptions
+                                    )
+                                );
                             },
                             name: providerName
                         )
                 );
+        private static void ConfigureDbClientOptions(
+            IConfigurationSection configurationSection,
+            DbClientConfigurationOptions options
+        ) {
+            var keyColumnName = configurationSection[key: nameof(options.KeyColumnName)];
+            var valueColumnName = configurationSection[key: nameof(options.ValueColumnName)];
+
+            if (!string.IsNullOrEmpty(keyColumnName)) {
+                options.KeyColumnName = valueColumnName;
+            }
+
+            if (!string.IsNullOrEmpty(valueColumnName)) {
+                options.ValueColumnName = valueColumnName;
+            }
+
+            options.ConnectionName = configurationSection[key: nameof(options.ConnectionName)];
+            //options.Parameters = Parameters;
+            options.SchemaName = configurationSection[key: nameof(options.SchemaName)];
+            options.StoredProcedureName = configurationSection[key: nameof(options.StoredProcedureName)];
+        }
         private static Action<IServiceProvider, TClientOptions> GetConfigureDbClientOptionsFunc<TClientOptions>(string connectionName) where TClientOptions : DbClientOptions =>
             (serviceProvider, options) => {
                 var configuration = serviceProvider.GetRequiredService<IConfiguration>();
@@ -83,7 +106,14 @@ namespace ByteTerrace.Ouroboros.Database
                 var clientConnectionString = connectionStrings.GetSection(key: connectionName);
 
                 options.ConnectionString = clientConnectionString[key: "value"];
-                options.ProviderFactory = DbProviderFactories.GetFactory(providerInvariantName: clientConnectionString[key: "type"]);
+                options.ProviderFactory = ((DbProviderFactory)Type
+                    .GetType(typeName: clientConnectionString[key: "type"])
+                    .GetField(
+                        bindingAttr: (BindingFlags.Public | BindingFlags.Static),
+                        name: "Instance"
+                    )
+                    .GetValue(obj: default)
+                );
             };
 
         /// <summary>
@@ -126,18 +156,9 @@ namespace ByteTerrace.Ouroboros.Database
             string connectionName
         ) =>
             services.AddDbClient<DbClient, DbClientOptions>(connectionName: connectionName);
-        /// <summary>
-        /// Adds the <see cref="IDbClientConfigurationRefresher"/> and related services to the <see cref="IServiceCollection"/>.
-        /// </summary>
-        /// <param name="configurationBuilder">The configuration builder that will be appended to.</param>
-        /// <param name="configurationSectionName">The name of the section to extract database client configuration settings from.</param>
-        /// <param name="providerName">The name of the database configuration provider.</param>
-        /// <param name="services">The collection of services that will be appended to.</param>
-        public static IServiceCollection AddDbClientConfiguration(
-            this IServiceCollection services,
-            IConfigurationBuilder configurationBuilder,
+        public static IConfigurationBuilder AddDbClientConfiguration(
+            this IConfigurationBuilder configurationBuilder,
             string providerName,
-            string configurationSectionName = "DbClient:ConfigurationProviders",
             IEnumerable<DbParameter>? parameters = default
         ) {
             var configurationClientNames = ConfigurationClientNames;
@@ -146,28 +167,62 @@ namespace ByteTerrace.Ouroboros.Database
                 ThrowHelper.ThrowArgumentException(message: $"A provider named \"{providerName}\" has already been configured with the database client configuration service.");
             }
 
-            configurationBuilder.Add(
+            var initialConfiguration = configurationBuilder.Build();
+            var configurationProviders = initialConfiguration.GetSection(key: "DbClient:ConfigurationProviders");
+            var configurationProvider = configurationProviders.GetSection(key: providerName);
+
+            return configurationBuilder.Add(
                 source: DbClientConfigurationSource.New(
-                    configurationSectionName: configurationSectionName,
+                    clientOptionsInitializer: (options) => {
+                        var connectionName = configurationProvider[key: "connectionName"];
+                        var connectionStrings = initialConfiguration.GetSection(key: "ConnectionStrings");
+                        var clientConnectionString = connectionStrings.GetSection(key: connectionName);
+                        var providerFactory = ((DbProviderFactory)Type
+                            .GetType(typeName: clientConnectionString[key: "type"])
+                            .GetField(
+                                bindingAttr: (BindingFlags.Public | BindingFlags.Static),
+                                name: "Instance"
+                            )
+                            .GetValue(obj: default)
+                        );
+
+                        var connection = providerFactory.CreateConnection();
+
+                        connection.ConnectionString = clientConnectionString[key: "value"];
+
+                        options.Connection = connection;
+                        options.ProviderFactory = providerFactory;
+                    },
+                    configurationOptionsInitializer: (_, options) => ConfigureDbClientOptions(
+                        configurationSection: configurationProvider,
+                        options: options
+                    ),
+                    configurationSectionName: "DbClient:ConfigurationProviders",
                     name: providerName,
                     parameters: parameters
                 )
             );
-
+        }
+        /// <summary>
+        /// Adds the <see cref="IDbClientConfigurationRefresher"/> and related services to the <see cref="IServiceCollection"/>.
+        /// </summary>
+        /// <param name="providerName">The name of the database configuration provider.</param>
+        /// <param name="services">The collection of services that will be appended to.</param>
+        public static IServiceCollection AddDbClientConfiguration(
+            this IServiceCollection services,
+            string providerName
+        ) {
             return services
                 .AddDbClientConfiguration()
                 .ConfigureDbClientConfiguration(
-                    configureClientOptions: (serviceProvider, options) => {
-                        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-                        var configurationProviders = configuration.GetSection(key: configurationSectionName);
+                    configureClientOptions: (configuration, options) => {
+                        var configurationProviders = configuration.GetSection(key: "DbClient:ConfigurationProviders");
                         var configurationProvider = configurationProviders.GetSection(key: providerName);
 
-                        options.ConnectionName = configurationProvider[key: nameof(options.ConnectionName)];
-                        options.KeyColumnName = (configurationProvider[key: nameof(options.KeyColumnName)] ?? "Key");
-                        options.Parameters = parameters;
-                        options.SchemaName = configurationProvider[key: nameof(options.SchemaName)];
-                        options.StoredProcedureName = configurationProvider[key: nameof(options.StoredProcedureName)];
-                        options.ValueColumnName = (configurationProvider[key: nameof(options.ValueColumnName)] ?? "Value");
+                        ConfigureDbClientOptions(
+                            configurationSection: configurationProvider,
+                            options: options
+                        );
                     },
                     providerName: providerName
                 );
