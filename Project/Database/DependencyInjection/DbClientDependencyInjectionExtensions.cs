@@ -302,16 +302,5 @@ namespace ByteTerrace.Ouroboros.Database
 
             return services;
         }
-        /// <summary>
-        /// Adds middleware that will automatically refresh <see cref="IConfiguration"/> values from configured database clients.
-        /// </summary>
-        /// <param name="builder">The application builder that will middleware will be integrated with.</param>
-        public static IApplicationBuilder UseDbClientConfiguration(this IApplicationBuilder builder) {
-            builder
-                .ApplicationServices
-                .GetRequiredService<IDbClientConfigurationRefresherProvider>();
-
-            return builder.UseMiddleware<DbClientConfigurationMiddleware>();
-        }
     }
 }

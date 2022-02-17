@@ -1,7 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using ByteTerrace.Ouroboros.Database;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
-namespace ByteTerrace.Ouroboros.Database
+namespace ByteTerrace.Ouroboros.AspNet
 {
     internal sealed class DbClientConfigurationMiddleware
     {
