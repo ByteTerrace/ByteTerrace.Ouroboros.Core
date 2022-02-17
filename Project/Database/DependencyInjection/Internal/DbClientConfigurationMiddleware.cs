@@ -19,7 +19,7 @@ namespace ByteTerrace.Ouroboros.Database
 
         public async Task InvokeAsync(
             HttpContext context,
-            IOptionsMonitor<DbClientConfigurationOptions> optionsMonitor
+            IOptionsMonitor<DbClientConfigurationProviderOptions> optionsMonitor
         ) {
             foreach (var refresher in Refreshers) {
                 await refresher

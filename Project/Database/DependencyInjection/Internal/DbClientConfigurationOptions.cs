@@ -1,6 +1,6 @@
 ﻿namespace ByteTerrace.Ouroboros.Database
 {
-    public class DbClientConfigurationOptions
+    internal class DbClientConfigurationOptions
     {
         public const string DefaultKeyColumnName = "Key";
         public const string DefaultValueColumnName = "Value";

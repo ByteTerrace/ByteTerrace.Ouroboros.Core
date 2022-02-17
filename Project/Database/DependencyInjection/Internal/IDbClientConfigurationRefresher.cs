@@ -6,7 +6,7 @@ namespace ByteTerrace.Ouroboros.Database
     {
         IDbClientFactory<DbClient> ClientFactory { get; set; }
         ValueTask RefreshAsync(
-            IOptionsMonitor<DbClientConfigurationOptions> optionsMonitor,
+            IOptionsMonitor<DbClientConfigurationProviderOptions> optionsMonitor,
             CancellationToken cancellationToken = default
         );
     }
