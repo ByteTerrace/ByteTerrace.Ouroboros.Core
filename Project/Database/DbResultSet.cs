@@ -6,31 +6,34 @@ namespace ByteTerrace.Ouroboros.Database
     /// <summary>
     /// Represents a set of rows from a database query along with the metadata about the query that returned them.
     /// </summary>
-    /// <param name="DataReader">The data reader that generates the result set.</param>
     /// <param name="FieldMetadata">The metadata of the fields that are returned by the result set.</param>
+    /// <param name="Reader">The data reader that generates the result set.</param>
     public readonly record struct DbResultSet(
-        IDataReader DataReader,
-        IReadOnlyList<DbFieldMetadata> FieldMetadata
+        IReadOnlyList<DbFieldMetadata> FieldMetadata,
+        IDataReader Reader
     ) : IEnumerable<DbRow>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="DbResultSet"/> struct.
         /// </summary>
-        /// <param name="dataReader">The data reader that will be enumerated.</param>
-        public static DbResultSet New(IDataReader dataReader) {
-            var fieldCount = dataReader.FieldCount;
+        /// <param name="reader">The data reader that will be enumerated.</param>
+        public static DbResultSet New(IDataReader reader) {
+            var fieldCount = reader.FieldCount;
             var fieldMetadata = new DbFieldMetadata[fieldCount];
 
             for (var i = 0; (i < fieldCount); ++i) {
                 fieldMetadata[i] = DbFieldMetadata.New(
-                    clrType: dataReader.GetFieldType(i),
-                    dbType: dataReader.GetDataTypeName(i),
-                    name: dataReader.GetName(i),
+                    clrType: reader.GetFieldType(i),
+                    dbType: reader.GetDataTypeName(i),
+                    name: reader.GetName(i),
                     ordinal: i
                 );
             }
 
-            return new(dataReader, fieldMetadata);
+            return new(
+                FieldMetadata: fieldMetadata,
+                Reader: reader
+            );
         }
 
         /// <summary>
@@ -49,10 +52,10 @@ namespace ByteTerrace.Ouroboros.Database
                 fieldNameToOrdinalMap[fieldMetadata.Name] = fieldMetadata.Ordinal;
             }
 
-            while (DataReader.Read()) {
+            while (Reader.Read()) {
                 var fieldValues = new object[fieldCount];
 
-                DataReader.GetValues(fieldValues);
+                Reader.GetValues(fieldValues);
 
                 yield return DbRow.New(fieldNameToOrdinalMap, Array.AsReadOnly(fieldValues));
             }

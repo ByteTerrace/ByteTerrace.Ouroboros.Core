@@ -84,6 +84,16 @@ namespace ByteTerrace.Ouroboros.Database
             );
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="DbParameter"/> struct.
+        /// </summary>
+        public DbParameter() : this(
+            Direction: ParameterDirection.Input,
+            Name: string.Empty,
+            Type: DbType.Object,
+            Value: null
+        ) { }
+
+        /// <summary>
         /// Convert this instance to the <see cref="IDbDataParameter"/> interface.
         /// </summary>
         /// <param name="command">The command that the parameter will be derived from.</param>

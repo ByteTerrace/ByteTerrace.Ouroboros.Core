@@ -25,7 +25,7 @@ namespace ByteTerrace.Ouroboros.Database
             }
 
             if (!refreshers.Any()) {
-                ThrowHelper.ThrowInvalidOperationException(message: $"Unable to access the {nameof(DbClient)} configuration provider. Please ensure that it has been configured correctly.");
+                ThrowHelper.ThrowInvalidOperationException(message: $"Unable to find a {nameof(DbClientConfigurationProvider)} refresher. Please ensure that one has been configured correctly.");
             }
 
             Refreshers = refreshers;

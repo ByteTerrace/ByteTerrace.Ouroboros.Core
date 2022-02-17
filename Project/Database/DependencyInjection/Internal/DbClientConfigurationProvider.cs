@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.Toolkit.Diagnostics;
+using System.Data;
 using System.Data.Common;
 
 namespace ByteTerrace.Ouroboros.Database
@@ -10,7 +11,7 @@ namespace ByteTerrace.Ouroboros.Database
         public static DbClientConfigurationProvider New(
             IDbClientFactory<DbClient> clientFactory,
             string name,
-            DbClientConfigurationProviderOptions options
+            DbClientConfigurationSourceOptions options
         ) =>
             new(
                 clientFactory: clientFactory,
@@ -20,12 +21,12 @@ namespace ByteTerrace.Ouroboros.Database
 
         public IDbClientFactory<DbClient> ClientFactory { get; set; }
         public string Name { get; set; }
-        public DbClientConfigurationProviderOptions Options { get; set; }
+        public DbClientConfigurationSourceOptions Options { get; set; }
 
         private DbClientConfigurationProvider(
             IDbClientFactory<DbClient> clientFactory,
             string name,
-            DbClientConfigurationProviderOptions options
+            DbClientConfigurationSourceOptions options
         ) {
             ClientFactory = clientFactory;
             Name = name;
@@ -69,20 +70,17 @@ namespace ByteTerrace.Ouroboros.Database
 
         public override void Load() {
             var providerOptions = Options;
-            var clientConfigurationOptions = new DbClientConfigurationOptions();
-            var clientConfigurationOptionsActions = providerOptions.ClientConfigurationOptionsActions;
+            var clientConfigurationOptions = DbClientConfigurationProviderOptions.New();
+            var clientConfigurationOptionsActions = providerOptions.ClientConfigurationProviderOptionsActions;
             var clientConfigurationOptionsActionsCount = clientConfigurationOptionsActions.Count;
 
             for (var i = 0; (i < clientConfigurationOptionsActionsCount); ++i) {
-                clientConfigurationOptionsActions[i](
-                    arg1: new ConfigurationBuilder().Build(),
-                    arg2: clientConfigurationOptions
-                );
+                clientConfigurationOptionsActions[i](obj: clientConfigurationOptions);
             }
 
-            using var client = GetClient(clientConfigurationOptions.ConnectionName);
+            using var client = GetClient(name: clientConfigurationOptions.ConnectionName);
             using var reader = client.ExecuteReader(
-                behavior: System.Data.CommandBehavior.SequentialAccess,
+                behavior: CommandBehavior.SequentialAccess,
                 command: GetStoredProcedureCall(
                     commandBuilder: client.CommandBuilder,
                     parameters: clientConfigurationOptions.Parameters,
@@ -92,40 +90,36 @@ namespace ByteTerrace.Ouroboros.Database
             );
 
             Data = client
-                .EnumerateResultSets(reader)
-                .SelectMany(resultSet => resultSet)
+                .EnumerateResultSets(reader: reader)
+                .SelectMany(selector: resultSet => resultSet)
                 .ToDictionary(
-                    elementSelector: (row) => (row[clientConfigurationOptions.ValueColumnName].ToString() ?? string.Empty),
-                    keySelector: (row) => (row[clientConfigurationOptions.KeyColumnName].ToString() ?? string.Empty)
+                    elementSelector: (row) => (row[name: clientConfigurationOptions.ValueColumnName].ToString() ?? string.Empty),
+                    keySelector: (row) => (row[name: clientConfigurationOptions.KeyColumnName].ToString() ?? string.Empty)
                 );
         }
 
         public async ValueTask RefreshAsync(
-            IConfiguration configuration,
-            IOptionsMonitor<DbClientConfigurationProviderOptions> optionsMonitor,
+            IOptionsMonitor<DbClientConfigurationSourceOptions> optionsMonitor,
             CancellationToken cancellationToken = default
         ) {
-            var providerOptions = optionsMonitor.Get(name: Name);
-            var clientConfigurationOptions = new DbClientConfigurationOptions();
-            var clientConfigurationOptionsActions = providerOptions.ClientConfigurationOptionsActions;
+            var configurationSourceOptions = optionsMonitor.Get(name: Name);
+            var configurationProviderOptions = DbClientConfigurationProviderOptions.New();
+            var clientConfigurationOptionsActions = configurationSourceOptions.ClientConfigurationProviderOptionsActions;
             var clientConfigurationOptionsActionsCount = clientConfigurationOptionsActions.Count;
 
             for (var i = 0; (i < clientConfigurationOptionsActionsCount); ++i) {
-                clientConfigurationOptionsActions[i](
-                    arg1: configuration,
-                    arg2: clientConfigurationOptions
-                );
+                clientConfigurationOptionsActions[i](obj: configurationProviderOptions);
             }
 
-            using var client = GetClient(clientConfigurationOptions.ConnectionName);
+            using var client = GetClient(name: configurationProviderOptions.ConnectionName);
             using var reader = await client.ExecuteReaderAsync(
-                behavior: System.Data.CommandBehavior.SequentialAccess,
+                behavior: CommandBehavior.SequentialAccess,
                 cancellationToken: cancellationToken,
                 command: GetStoredProcedureCall(
                     commandBuilder: client.CommandBuilder,
-                    parameters: clientConfigurationOptions.Parameters,
-                    schemaName: clientConfigurationOptions.SchemaName,
-                    storedProcedureName: clientConfigurationOptions.StoredProcedureName
+                    parameters: configurationProviderOptions.Parameters,
+                    schemaName: configurationProviderOptions.SchemaName,
+                    storedProcedureName: configurationProviderOptions.StoredProcedureName
                 )
             );
 
@@ -134,11 +128,11 @@ namespace ByteTerrace.Ouroboros.Database
                     cancellationToken: cancellationToken,
                     reader: reader
                 )
-               .SelectMany(resultSet => resultSet.ToAsyncEnumerable())
+               .SelectMany(selector: resultSet => resultSet.ToAsyncEnumerable())
                .ToDictionaryAsync(
                     cancellationToken: cancellationToken,
-                    elementSelector: (row) => (row[clientConfigurationOptions.ValueColumnName].ToString() ?? string.Empty),
-                    keySelector: (row) => (row[clientConfigurationOptions.KeyColumnName].ToString() ?? string.Empty)
+                    elementSelector: (row) => (row[name: configurationProviderOptions.ValueColumnName].ToString() ?? string.Empty),
+                    keySelector: (row) => (row[name: configurationProviderOptions.KeyColumnName].ToString() ?? string.Empty)
                 );
         }
     }

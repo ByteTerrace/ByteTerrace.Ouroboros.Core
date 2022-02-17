@@ -184,11 +184,11 @@ namespace ByteTerrace.Ouroboros.Database
         /// <summary>
         /// Enumerates each result set in the specified data reader.
         /// </summary>
-        /// <param name="dataReader">The data reader that will be enumerated.</param>
-        public IEnumerable<DbResultSet> EnumerateResultSets(DbDataReader dataReader) {
+        /// <param name="reader">The data reader that will be enumerated.</param>
+        public IEnumerable<DbResultSet> EnumerateResultSets(DbDataReader reader) {
             do {
-                yield return DbResultSet.New(dataReader: dataReader);
-            } while (dataReader.NextResult());
+                yield return DbResultSet.New(reader: reader);
+            } while (reader.NextResult());
         }
         /// <summary>
         /// Enumerates each result set in the specified data reader asynchronously.
@@ -200,7 +200,7 @@ namespace ByteTerrace.Ouroboros.Database
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         ) {
             do {
-                yield return DbResultSet.New(dataReader: reader);
+                yield return DbResultSet.New(reader: reader);
             } while (await reader
                 .NextResultAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(continueOnCapturedContext: false)
@@ -215,14 +215,14 @@ namespace ByteTerrace.Ouroboros.Database
             string schemaName,
             string name
         ) {
-            using var dataReader = ExecuteReader(
+            using var reader = ExecuteReader(
                     behavior: (CommandBehavior.SequentialAccess | CommandBehavior.SingleResult),
                     command: CreateSelectWildcardFromCommand(
                         objectName: name,
                         schemaName: schemaName
                     )
                 );
-            using var enumerator = EnumerateResultSets(dataReader: dataReader)
+            using var enumerator = EnumerateResultSets(reader: reader)
                 .GetEnumerator();
 
             if (enumerator.MoveNext()) {
