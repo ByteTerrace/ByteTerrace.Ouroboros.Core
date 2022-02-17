@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -220,15 +219,23 @@ namespace ByteTerrace.Ouroboros.Database
             this IConfigurationBuilder configurationBuilder,
             string configurationSectionKey = DefaultConfigurationSectionKey
         ) {
-            var configuration = configurationBuilder.Build();
-            var configurationProviders = configuration.GetSection(key: DefaultConfigurationSectionKey);
+            IConfiguration builtConfiguration;
+
+            if (configurationBuilder is IConfiguration configuration) {
+                builtConfiguration = configuration;
+            }
+            else {
+                builtConfiguration = configurationBuilder.Build();
+            }
+
+            var configurationProviders = builtConfiguration.GetSection(key: DefaultConfigurationSectionKey);
 
             foreach (var configurationProvider in configurationProviders.GetChildren()) {
                 var providerName = configurationProvider.Key;
 
                 if (!ConfigurationClientSources.Contains(item: providerName)) {
                     configurationBuilder.AddDbClientConfigurationSource(
-                        configuration: configuration,
+                        configuration: builtConfiguration,
                         configurationSectionKey: configurationSectionKey,
                         providerName: providerName
                     );
