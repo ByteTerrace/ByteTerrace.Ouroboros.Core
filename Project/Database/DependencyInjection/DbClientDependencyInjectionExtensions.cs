@@ -58,15 +58,20 @@ namespace ByteTerrace.Ouroboros.Database
                         name: connectionName
                     )
             );
-        private static Action<IServiceProvider, TClientOptions> GetConfigureDbClientOptionsFunc<TClientOptions>(string connectionName) where TClientOptions : DbClientOptions =>
-            (serviceProvider, options) => {
-                var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-                var connectionStrings = configuration.GetSection(key: "ConnectionStrings");
-                var clientConnectionString = connectionStrings.GetSection(key: connectionName);
+        private static void ConfigureDbClientOptions(IConfiguration configuration, string connectionName, DbClientOptions options) {
+            var connectionString = configuration
+                .GetSection(key: "ConnectionStrings")
+                .GetSection(key: connectionName);
 
-                options.ConnectionString = clientConnectionString[key: "value"];
-                options.ProviderFactory = GetDbProviderFactory(typeName: clientConnectionString[key: "type"]);
-            };
+            options.ConnectionString = connectionString[key: "value"];
+            options.ProviderFactory = GetDbProviderFactory(typeName: connectionString[key: "type"]);
+        }
+        private static Action<IServiceProvider, TClientOptions> GetConfigureDbClientOptionsFunc<TClientOptions>(string connectionName) where TClientOptions : DbClientOptions =>
+            (serviceProvider, options) => ConfigureDbClientOptions(
+                configuration: serviceProvider.GetRequiredService<IConfiguration>(),
+                connectionName: connectionName,
+                options: options
+            );
         private static DbProviderFactory? GetDbProviderFactory(string typeName) {
             const string DefaultFactoryFieldName = "Instance";
 
@@ -107,9 +112,7 @@ namespace ByteTerrace.Ouroboros.Database
         )
             where TClient : DbClient
             where TClientOptions : DbClientOptions {
-            var clientNames = ClientNames;
-
-            if (!clientNames.Add(item: connectionName)) {
+            if (!ClientNames.Add(item: connectionName)) {
                 ThrowHelper.ThrowArgumentException(message: $"A connection named \"{connectionName}\" has already been configured with the database client factory service.");
             }
 
@@ -135,6 +138,44 @@ namespace ByteTerrace.Ouroboros.Database
         ) =>
             services.AddDbClient<DbClient, DbClientOptions>(connectionName: connectionName);
         /// <summary>
+        /// Adds the <see cref="IDbClientFactory{DbClient}"/> and related services to the <see cref="IServiceCollection"/> for all named connections that match the specified predicate. Connections that have already been added will be skipped.
+        /// </summary>
+        /// <param name="configuration">The configuration that will have its connection strings enumerated.</param>
+        /// <param name="filter">A filter that will be applied before adding the database clients.</param>
+        /// <param name="services">The collection of services that will be appended to.</param>
+        public static IServiceCollection AddDbClients<TClient, TClientOptions>(
+            this IServiceCollection services,
+            IConfiguration configuration,
+            Func<IConfigurationSection, bool> filter
+        )
+            where TClient : DbClient
+            where TClientOptions : DbClientOptions {
+            var connectionStrings = configuration.GetSection(key: "ConnectionStrings");
+
+            foreach (var clientConnectionString in connectionStrings.GetChildren()) {
+                var connectionName = clientConnectionString.Key;
+
+                if (filter(arg: clientConnectionString) && !ClientNames.Contains(item: connectionName)) {
+                    services.AddDbClient<TClient, TClientOptions>(connectionName: connectionName);
+                }
+            }
+
+            return services;
+        }
+        /// <summary>
+        /// Adds the <see cref="IDbClientFactory{DbClient}"/> and related services to the <see cref="IServiceCollection"/> for all named connections that match the specified predicate. Connections that have already been added will be skipped.
+        /// </summary>
+        /// <param name="configuration">The configuration that will have its connection strings enumerated.</param>
+        /// <param name="services">The collection of services that will be appended to.</param>
+        public static IServiceCollection AddDbClients(
+            this IServiceCollection services,
+            IConfiguration configuration
+        ) =>
+            services.AddDbClients<DbClient, DbClientOptions>(
+                configuration: configuration,
+                filter: (_) => true
+            );
+        /// <summary>
         /// Adds the <see cref="IDbClientFactory{DbClient}"/> configuration source and related services to the specified <see cref="IConfigurationBuilder"/>.
         /// </summary>
         /// <param name="configurationBuilder">The configuration builder that will be appended to.</param>
@@ -145,28 +186,24 @@ namespace ByteTerrace.Ouroboros.Database
             string providerName,
             string configurationSectionKey = DefaultConfigurationSectionKey
         ) {
-            var configurationClientNames = ConfigurationClientNames;
-
-            if (!configurationClientNames.Add(item: providerName)) {
+            if (!ConfigurationClientNames.Add(item: providerName)) {
                 ThrowHelper.ThrowArgumentException(message: $"A provider named \"{providerName}\" has already been configured with the database client configuration service.");
             }
 
             var initialConfiguration = configurationBuilder.Build();
-            var configurationProviders = initialConfiguration.GetSection(key: configurationSectionKey);
-            var configurationProvider = configurationProviders.GetSection(key: providerName);
-            var connectionName = configurationProvider[key: "connectionName"];
-            var connectionStrings = initialConfiguration.GetSection(key: "ConnectionStrings");
-            var clientConnectionString = connectionStrings.GetSection(key: connectionName);
-            var type = clientConnectionString[key: "type"];
-            var value = clientConnectionString[key: "value"];
+            var configurationProviderSection = initialConfiguration
+                .GetSection(key: configurationSectionKey)
+                .GetSection(key: providerName);
+            var connectionName = configurationProviderSection[key: "connectionName"];
 
             return configurationBuilder.Add(
                 source: DbClientConfigurationSource.New(
-                    clientOptionsInitializer: (options) => {
-                        options.ConnectionString = value;
-                        options.ProviderFactory = GetDbProviderFactory(typeName: type);
-                    },
-                    configurationOptionsInitializer: configurationProvider.Bind,
+                    clientOptionsInitializer: (options) => ConfigureDbClientOptions(
+                        configuration: initialConfiguration,
+                        connectionName: connectionName,
+                        options: options
+                    ),
+                    configurationOptionsInitializer: configurationProviderSection.Bind,
                     configurationSectionName: configurationSectionKey,
                     name: providerName
                 )

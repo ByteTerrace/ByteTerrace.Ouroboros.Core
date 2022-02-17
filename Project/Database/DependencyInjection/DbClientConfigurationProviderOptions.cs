@@ -1,4 +1,6 @@
-﻿namespace ByteTerrace.Ouroboros.Database
+﻿using Microsoft.Toolkit.Diagnostics;
+
+namespace ByteTerrace.Ouroboros.Database
 {
     /// <summary>
     /// An options class for configuring a <see cref="DbClientConfigurationProvider"/>.
@@ -24,9 +26,14 @@
         public string KeyColumnName {
             get => m_keyColumnName;
             set {
-                if (!string.IsNullOrEmpty(value)) {
-                    m_keyColumnName = value;
+                if (string.IsNullOrEmpty(value)) {
+                    ThrowHelper.ThrowArgumentNullException(
+                        message: $"{nameof(KeyColumnName)} property cannot be null or empty.",
+                        name: nameof(value)
+                    );
                 }
+
+                m_keyColumnName = value;
             }
         }
         /// <summary>
@@ -47,9 +54,14 @@
         public string ValueColumnName {
             get => m_valueColumnName;
             set {
-                if (!string.IsNullOrEmpty(value)) {
-                    m_valueColumnName = value;
+                if (string.IsNullOrEmpty(value)) {
+                    ThrowHelper.ThrowArgumentNullException(
+                        message: $"{nameof(ValueColumnName)} property cannot be null or empty.",
+                        name: nameof(value)
+                    );
                 }
+
+                m_valueColumnName = value;
             }
         }
 
