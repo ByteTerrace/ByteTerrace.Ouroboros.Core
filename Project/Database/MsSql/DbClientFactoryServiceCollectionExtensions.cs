@@ -20,7 +20,7 @@ namespace ByteTerrace.Ouroboros.Database
         ) =>
             services.AddDbClient<MsSqlClient, MsSqlClientOptions>(connectionName: connectionName);
         /// <summary>
-        /// Adds the <see cref="IDbClientFactory{MsSqlClient}"/> and related services to the <see cref="IServiceCollection"/> for all named connections of type "Microsoft.Data.SqlClient" or "System.Data.SqlClient". Connections that have already been added will be skipped.
+        /// Enumerates the specified configuration and adds a <see cref="MsSqlClient"/> service for all named connections. Connections that have already been added will be skipped.
         /// </summary>
         /// <param name="configuration">The configuration that will have its connection strings enumerated.</param>
         /// <param name="services">The collection of services that will be appended to.</param>

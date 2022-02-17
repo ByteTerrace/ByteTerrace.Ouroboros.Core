@@ -16,8 +16,9 @@ namespace ByteTerrace.Ouroboros.Database
     {
         private const string DefaultConfigurationSectionKey = "DbClient:ConfigurationProviders";
 
-        private static HashSet<string> ClientNames { get; } = new HashSet<string>();
-        private static HashSet<string> ConfigurationClientNames { get; } = new HashSet<string>();
+        private static HashSet<string> Clients { get; } = new HashSet<string>();
+        private static HashSet<string> ConfigurationClientProviders { get; } = new HashSet<string>();
+        private static HashSet<string> ConfigurationClientSources { get; } = new HashSet<string>();
 
         private static IServiceCollection AddDbClient<TClient, TClientOptions>(this IServiceCollection services)
             where TClient : DbClient
@@ -112,7 +113,7 @@ namespace ByteTerrace.Ouroboros.Database
         )
             where TClient : DbClient
             where TClientOptions : DbClientOptions {
-            if (!ClientNames.Add(item: connectionName)) {
+            if (!Clients.Add(item: connectionName)) {
                 ThrowHelper.ThrowArgumentException(message: $"A connection named \"{connectionName}\" has already been configured with the database client factory service.");
             }
 
@@ -138,7 +139,7 @@ namespace ByteTerrace.Ouroboros.Database
         ) =>
             services.AddDbClient<DbClient, DbClientOptions>(connectionName: connectionName);
         /// <summary>
-        /// Adds the <see cref="IDbClientFactory{DbClient}"/> and related services to the <see cref="IServiceCollection"/> for all named connections that match the specified predicate. Connections that have already been added will be skipped.
+        /// Enumerates the specified configuration and adds a typed <see cref="DbClient"/> service for all named connections for all named connections that match the specified predicate. Connections that have already been added will be skipped.
         /// </summary>
         /// <param name="configuration">The configuration that will have its connection strings enumerated.</param>
         /// <param name="filter">A filter that will be applied before adding the database clients.</param>
@@ -155,7 +156,7 @@ namespace ByteTerrace.Ouroboros.Database
             foreach (var clientConnectionString in connectionStrings.GetChildren()) {
                 var connectionName = clientConnectionString.Key;
 
-                if (filter(arg: clientConnectionString) && !ClientNames.Contains(item: connectionName)) {
+                if (!Clients.Contains(item: connectionName) && filter(arg: clientConnectionString)) {
                     services.AddDbClient<TClient, TClientOptions>(connectionName: connectionName);
                 }
             }
@@ -163,7 +164,7 @@ namespace ByteTerrace.Ouroboros.Database
             return services;
         }
         /// <summary>
-        /// Adds the <see cref="IDbClientFactory{DbClient}"/> and related services to the <see cref="IServiceCollection"/> for all named connections that match the specified predicate. Connections that have already been added will be skipped.
+        /// Enumerates the specified configuration and adds a <see cref="DbClient"/> service for all named connections. Connections that have already been added will be skipped.
         /// </summary>
         /// <param name="configuration">The configuration that will have its connection strings enumerated.</param>
         /// <param name="services">The collection of services that will be appended to.</param>
@@ -176,22 +177,23 @@ namespace ByteTerrace.Ouroboros.Database
                 filter: (_) => true
             );
         /// <summary>
-        /// Adds the <see cref="IDbClientFactory{DbClient}"/> configuration source and related services to the specified <see cref="IConfigurationBuilder"/>.
+        /// Adds a <see cref="DbClientConfigurationSource"/> to the specified <see cref="IConfigurationBuilder"/>.
         /// </summary>
+        /// <param name="configuration">The configuration that sources will be extracted from.</param>
         /// <param name="configurationBuilder">The configuration builder that will be appended to.</param>
         /// <param name="configurationSectionKey">The key of the section that will be used to configure the provider.</param>
         /// <param name="providerName">The name of the database configuration provider.</param>
-        public static IConfigurationBuilder AddDbClientConfiguration(
+        public static IConfigurationBuilder AddDbClientConfigurationSource(
             this IConfigurationBuilder configurationBuilder,
+            IConfiguration configuration,
             string providerName,
             string configurationSectionKey = DefaultConfigurationSectionKey
         ) {
-            if (!ConfigurationClientNames.Add(item: providerName)) {
-                ThrowHelper.ThrowArgumentException(message: $"A provider named \"{providerName}\" has already been configured with the database client configuration service.");
+            if (!ConfigurationClientSources.Add(item: providerName)) {
+                ThrowHelper.ThrowArgumentException(message: $"A provider named \"{providerName}\" has already been configured too use a database client configuration source.");
             }
 
-            var initialConfiguration = configurationBuilder.Build();
-            var configurationProviderSection = initialConfiguration
+            var configurationProviderSection = configuration
                 .GetSection(key: configurationSectionKey)
                 .GetSection(key: providerName);
             var connectionName = configurationProviderSection[key: "connectionName"];
@@ -199,7 +201,7 @@ namespace ByteTerrace.Ouroboros.Database
             return configurationBuilder.Add(
                 source: DbClientConfigurationSource.New(
                     clientOptionsInitializer: (options) => ConfigureDbClientOptions(
-                        configuration: initialConfiguration,
+                        configuration: configuration,
                         connectionName: connectionName,
                         options: options
                     ),
@@ -210,16 +212,46 @@ namespace ByteTerrace.Ouroboros.Database
             );
         }
         /// <summary>
-        /// Adds the <see cref="IDbClientConfigurationRefresher"/> and related services to the <see cref="IServiceCollection"/>.
+        /// Enumerates the specified configuration and adds a <see cref="DbClientConfigurationSource"/> to the specified builder for all named connections. Providers that have already been added will be skipped.
+        /// </summary>
+        /// <param name="configurationBuilder">The configuration builder that will be appended to.</param>
+        /// <param name="configurationSectionKey">The key of the section that will be used to configure the provider.</param>
+        public static IConfigurationBuilder AddDbClientConfigurationSources(
+            this IConfigurationBuilder configurationBuilder,
+            string configurationSectionKey = DefaultConfigurationSectionKey
+        ) {
+            var configuration = configurationBuilder.Build();
+            var configurationProviders = configuration.GetSection(key: DefaultConfigurationSectionKey);
+
+            foreach (var configurationProvider in configurationProviders.GetChildren()) {
+                var providerName = configurationProvider.Key;
+
+                if (!ConfigurationClientSources.Contains(item: providerName)) {
+                    configurationBuilder.AddDbClientConfigurationSource(
+                        configuration: configuration,
+                        configurationSectionKey: configurationSectionKey,
+                        providerName: providerName
+                    );
+                }
+            }
+
+            return configurationBuilder;
+        }
+        /// <summary>
+        /// Adds the <see cref="IDbClientConfigurationRefresher"/> to the specified service collection.
         /// </summary>
         /// <param name="configurationSectionKey">The key of the section that will be used to configure the provider.</param>
         /// <param name="providerName">The name of the database configuration provider.</param>
         /// <param name="services">The collection of services that will be appended to.</param>
-        public static IServiceCollection AddDbClientConfiguration(
+        public static IServiceCollection AddDbClientConfigurationProvider(
             this IServiceCollection services,
             string providerName,
             string configurationSectionKey = DefaultConfigurationSectionKey
         ) {
+            if (!ConfigurationClientProviders.Add(item: providerName)) {
+                ThrowHelper.ThrowArgumentException(message: $"A provider named \"{providerName}\" has already been configured too use a database client configuration provider.");
+            }
+
             services
                 .AddLogging()
                 .AddOptions();
@@ -241,6 +273,34 @@ namespace ByteTerrace.Ouroboros.Database
                         name: providerName
                     )
             );
+        }
+        /// <summary>
+        /// Enumerates the specified configuration and adds a <see cref="IDbClientConfigurationRefresher"/> to the specified service collection for all named connections. Providers that have already been added will be skipped.
+        /// </summary>
+        /// <param name="configuration">The configuration that will have its configuration providers enumerated.</param>
+        /// <param name="configurationSectionKey">The key of the section that will be used to configure the provider.</param>
+        /// <param name="services">The collection of services that will be appended to.</param>
+        public static IServiceCollection AddDbClientConfigurationProviders(
+            this IServiceCollection services,
+            IConfiguration configuration,
+            string configurationSectionKey = DefaultConfigurationSectionKey
+        ) {
+            services.AddDbClients(configuration: configuration);
+
+            var configurationProviders = configuration.GetSection(key: DefaultConfigurationSectionKey);
+
+            foreach (var configurationProvider in configurationProviders.GetChildren()) {
+                var providerName = configurationProvider.Key;
+
+                if (!ConfigurationClientProviders.Contains(item: providerName)) {
+                    services.AddDbClientConfigurationProvider(
+                        configurationSectionKey: configurationSectionKey,
+                        providerName: providerName
+                    );
+                }
+            }
+
+            return services;
         }
         /// <summary>
         /// Adds middleware that will automatically refresh <see cref="IConfiguration"/> values from configured database clients.
